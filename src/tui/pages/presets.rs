@@ -28,6 +28,17 @@ const FILTERS: [&str; 8] = [
     "cache",
     "context",
 ];
+/// How each filter reads; `FILTERS` stay the tags they match.
+const FILTER_LABELS: [&str; 8] = [
+    "全部",
+    "我的",
+    "极简",
+    "多行",
+    "powerline",
+    "配额",
+    "缓存",
+    "上下文",
+];
 /// Narrowest card; the grid fits as many columns as this allows.
 const CARD_MIN: u16 = 34;
 /// Status line rows a card shows.
@@ -58,19 +69,15 @@ fn title(name: &str) -> String {
         .unwrap_or_default()
 }
 
-fn plural(n: usize, word: &str) -> String {
-    format!("{n} {word}{}", if n == 1 { "" } else { "s" })
-}
-
 /// `edited 2d ago`, from a file's modification time.
 fn edited(modified: Option<std::time::SystemTime>, now: i64) -> Option<String> {
     let at = modified?.duration_since(UNIX_EPOCH).ok()?.as_secs() as i64;
     let secs = (now - at).max(0);
     Some(match secs {
-        0..=59 => "edited just now".into(),
-        60..=3_599 => format!("edited {}m ago", secs / 60),
-        3_600..=86_399 => format!("edited {}h ago", secs / 3_600),
-        _ => format!("edited {}d ago", secs / 86_400),
+        0..=59 => "刚刚编辑".into(),
+        60..=3_599 => format!("{} 分钟前编辑", secs / 60),
+        3_600..=86_399 => format!("{} 小时前编辑", secs / 3_600),
+        _ => format!("{} 天前编辑", secs / 86_400),
     })
 }
 
@@ -80,7 +87,7 @@ fn footer(entry: &Entry, now: i64) -> String {
         .config
         .as_ref()
         .ok()
-        .map(|c| plural(c.lines.len(), "line"));
+        .map(|c| format!("{} 行", c.lines.len()));
     let parts: Vec<String> = match &entry.origin {
         Origin::Builtin => lines
             .into_iter()
@@ -88,8 +95,8 @@ fn footer(entry: &Entry, now: i64) -> String {
             .collect(),
         Origin::Mine {
             modified, replaces, ..
-        } => std::iter::once("mine".to_string())
-            .chain(replaces.then(|| "replaces built-in".to_string()))
+        } => std::iter::once("我的".to_string())
+            .chain(replaces.then(|| "替换内置预设".to_string()))
             .chain(lines)
             .chain(edited(*modified, now))
             .collect(),
@@ -124,11 +131,11 @@ impl Presets {
     }
 
     fn filter_line(&self) -> Line<'static> {
-        let mut spans = vec![Span::styled(" Filter  ", ui::muted())];
-        for (i, f) in FILTERS.iter().enumerate() {
+        let mut spans = vec![Span::styled(" 筛选  ", ui::muted())];
+        for (i, label) in FILTER_LABELS.iter().enumerate() {
             let on = i == self.filter;
             spans.push(Span::styled(
-                format!("{} {f}  ", ui::radio(on)),
+                format!("{} {label}  ", ui::radio(on)),
                 if on { ui::accent() } else { Style::default() },
             ));
         }
@@ -150,8 +157,8 @@ impl Presets {
             ));
         if in_use {
             let note = match &entry.config {
-                Ok(config) if presets::matches(&cx.doc.config, config) => " ✓ in use ",
-                _ => " ✓ in use, modified ",
+                Ok(config) if presets::matches(&cx.doc.config, config) => " ✓ 使用中 ",
+                _ => " ✓ 使用中（已修改） ",
             };
             block =
                 block.title_top(Line::styled(note, Style::default().fg(ui::OK)).right_aligned());
@@ -164,7 +171,7 @@ impl Presets {
                     .render(config, cx.doc, &registry, cx.env.tz, inner.width)
             }
             Err(e) => vec![
-                Line::styled("Can't read this file:", Style::default().fg(ui::BAD)),
+                Line::styled("无法读取此文件：", Style::default().fg(ui::BAD)),
                 Line::styled(e.clone(), ui::muted()),
             ],
         };
@@ -178,14 +185,14 @@ impl Presets {
     fn info(&self, entry: Option<&Entry>) -> Vec<Line<'static>> {
         let Some(e) = entry else {
             let empty = if FILTERS[self.filter] == "mine" {
-                " No presets of yours yet. N saves the current setup as one."
+                " 你还没有自己的预设。按 N 可把当前设置保存为一个。"
             } else {
-                " No preset has this tag."
+                " 没有预设带这个标签。"
             };
             return vec![Line::styled(empty, ui::muted())];
         };
         let summary = if e.summary.is_empty() {
-            Span::styled("— your preset", ui::muted())
+            Span::styled("— 你的预设", ui::muted())
         } else {
             Span::raw(format!("— {}", e.summary))
         };
@@ -196,8 +203,8 @@ impl Presets {
         let make = match &e.config {
             Ok(config) => Line::styled(
                 format!(
-                    " {} · skin {} · palette {} · glyphs {}{file}",
-                    plural(config.lines.len(), "line"),
+                    " {} 行 · 皮肤 {} · 配色 {} · 字形 {}{file}",
+                    config.lines.len(),
                     format!("{:?}", config.skin).to_lowercase(),
                     config.palette,
                     format!("{:?}", config.glyphs).to_lowercase(),
@@ -294,23 +301,23 @@ impl Page for Presets {
                 let entry = shown[self.selected];
                 let config = match &entry.config {
                     Ok(c) => c.clone(),
-                    Err(e) => return Outcome::Toast(format!("Can't use {}: {e}", entry.name)),
+                    Err(e) => return Outcome::Toast(format!("无法使用 {}：{e}", entry.name)),
                 };
                 let name = entry.name.clone();
                 let (parts, what) = match key.code {
                     KeyCode::Enter => (Parts::All, ""),
-                    KeyCode::Char('l' | 'L') => (Parts::Layout, "the layout of "),
-                    _ => (Parts::Style, "the look of "),
+                    KeyCode::Char('l' | 'L') => (Parts::Layout, "布局 · "),
+                    _ => (Parts::Style, "外观 · "),
                 };
                 doc.edit(|c, _| *c = presets::apply(c, &config, parts));
-                return Outcome::Toast(format!("Applied {what}{name} (^Z undoes)"));
+                return Outcome::Toast(format!("已应用 {what}{name}（^Z 可撤销）"));
             }
             KeyCode::Char('n' | 'N') => return Outcome::Open(Box::new(PresetDialog::new())),
             KeyCode::Char('w' | 'W' | 'e' | 'E' | 'x' | 'X') | KeyCode::Delete if n > 0 => {
                 let entry = shown[self.selected];
                 if !entry.is_mine() {
                     return Outcome::Toast(
-                        "Built-in presets stay as they are; N saves yours as a new one".into(),
+                        "内置预设保持不变；按 N 可把你自己的另存为新预设".into(),
                     );
                 }
                 let name = entry.name.clone();
@@ -330,23 +337,23 @@ impl Page for Presets {
         let entry = self.shown(&doc.presets).get(self.selected).copied()?;
         let config = entry.config.as_ref().ok()?;
         Some((
-            format!("{} · enter applies", entry.name),
+            format!("{} · 回车应用", entry.name),
             presets::apply(&doc.config, config, Parts::All),
         ))
     }
 
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
         let mut keys = vec![
-            ("←→↑↓", "choose"),
-            ("enter", "apply"),
-            ("L", "layout only"),
-            ("S", "style only"),
-            ("N", "save as preset"),
+            ("←→↑↓", "选择"),
+            ("enter", "应用"),
+            ("L", "仅布局"),
+            ("S", "仅外观"),
+            ("N", "另存为预设"),
         ];
         if self.on_mine {
-            keys.extend([("W", "replace"), ("E", "rename"), ("X", "delete")]);
+            keys.extend([("W", "替换"), ("E", "重命名"), ("X", "删除")]);
         }
-        keys.push(("tab", "filter"));
+        keys.push(("tab", "筛选"));
         keys
     }
 }
@@ -376,7 +383,7 @@ mod tests {
         ] {
             assert!(s.contains(name), "{name}: {s}");
         }
-        assert!(s.contains("✓ in use"), "the default config is cometix: {s}");
+        assert!(s.contains("✓ 使用中"), "the default config is cometix: {s}");
         assert!(s.contains("Classic look"));
 
         // Right then down: from cometix to the card under minimal. The
@@ -384,14 +391,14 @@ mod tests {
         app.handle_key(key(KeyCode::Right));
         let s = screen(&mut app, 112, 33);
         assert!(s.contains("Model, context, cache and cost"));
-        assert!(s.contains("Preview · minimal · enter applies"), "{s}");
+        assert!(s.contains("预览 · minimal · 回车应用"), "{s}");
         assert!(!app.doc.dirty());
         app.handle_key(key(KeyCode::Down));
         app.handle_key(key(KeyCode::Char('s')));
         assert_eq!(app.doc.config.lines.len(), 1, "style only keeps the layout");
         assert_ne!(app.doc.config.palette, "terminal");
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("✓ in use, modified"), "{s}");
+        assert!(s.contains("✓ 使用中（已修改）"), "{s}");
         app.handle_key(ctrl('z'));
         assert!(!app.doc.dirty());
 
@@ -402,17 +409,17 @@ mod tests {
         let s = screen(&mut app, 112, 33);
         // Every preset shows the cache; the tag marks the one about it.
         assert!(
-            s.contains("● cache")
+            s.contains("● 缓存")
                 && s.contains("Cache-aware")
                 && !s.contains("Classic look")
                 && !s.contains("Minimal"),
             "{s}"
         );
-        assert!(s.contains("Preview · cache-aware"), "{s}");
+        assert!(s.contains("预览 · cache-aware"), "{s}");
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(app.doc.config.preset.as_deref(), Some("cache-aware"));
         assert_eq!(app.doc.config.lines.len(), 2);
-        assert!(screen(&mut app, 112, 33).contains("Applied cache-aware"));
+        assert!(screen(&mut app, 112, 33).contains("已应用 cache-aware"));
 
         // Up from the first row reaches the tab row.
         app.handle_key(key(KeyCode::Up));
@@ -433,44 +440,41 @@ mod tests {
         app.open_page(PageId::Presets);
         app.handle_key(key(KeyCode::Tab));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("No presets of yours yet. N saves"), "{s}");
+        assert!(s.contains("你还没有自己的预设"), "{s}");
 
         // Built-ins don't change.
         app.handle_key(key(KeyCode::BackTab));
         app.handle_key(key(KeyCode::Char('x')));
-        assert!(screen(&mut app, 112, 33).contains("Built-in presets stay as they are"));
+        assert!(screen(&mut app, 112, 33).contains("内置预设保持不变"));
 
         // Apply a look, then save the setup under a name typed loosely.
         app.handle_key(key(KeyCode::Char('s')));
         app.handle_key(key(KeyCode::Char('n')));
         typed(&mut app, "cometix");
         let s = screen(&mut app, 112, 33);
-        assert!(
-            s.contains("Save as preset") && s.contains("built-in preset"),
-            "{s}"
-        );
+        assert!(s.contains("另存为预设") && s.contains("内置预设"), "{s}");
         for _ in 0.."cometix".len() {
             app.handle_key(key(KeyCode::Backspace));
         }
         typed(&mut app, "Work Laptop");
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("presets/work-laptop.toml"), "{s}");
+        assert!(s.contains("work-laptop.toml"), "{s}");
         app.handle_key(key(KeyCode::Tab));
         typed(&mut app, "Quota first");
         app.handle_key(key(KeyCode::Enter));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("Saved preset work-laptop"), "{s}");
+        assert!(s.contains("已保存预设 work-laptop"), "{s}");
         assert!(dir.join("presets/work-laptop.toml").exists());
         assert_eq!(app.doc.config.preset.as_deref(), Some("work-laptop"));
         // It comes first, selected, in use, with its summary below.
-        assert!(s.contains("Work-laptop") && s.contains("✓ in use"), "{s}");
+        assert!(s.contains("Work-laptop") && s.contains("✓ 使用中"), "{s}");
         assert!(
-            s.contains("— Quota first") && s.contains("mine · 1 line"),
+            s.contains("— Quota first") && s.contains("我的 · 1 行"),
             "{s}"
         );
         app.handle_key(key(KeyCode::Char('?')));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("replace") && s.contains("rename"), "{s}");
+        assert!(s.contains("替换") && s.contains("重命名"), "{s}");
         app.handle_key(key(KeyCode::Esc));
 
         // Rename it; the config follows the new name.
@@ -482,29 +486,29 @@ mod tests {
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(app.doc.config.preset.as_deref(), Some("office"));
         assert!(!dir.join("presets/work-laptop.toml").exists());
-        assert!(screen(&mut app, 112, 33).contains("Renamed work-laptop to office"));
+        assert!(screen(&mut app, 112, 33).contains("已把 work-laptop 重命名为 office"));
 
         // Change the setup: the card says so, and W takes the change in.
         app.doc.edit(|c, _| c.palette = "nord".into());
-        assert!(screen(&mut app, 112, 33).contains("✓ in use, modified"));
+        assert!(screen(&mut app, 112, 33).contains("✓ 使用中（已修改）"));
         app.handle_key(key(KeyCode::Char('w')));
-        assert!(screen(&mut app, 112, 33).contains("Replace office with your current setup?"));
+        assert!(screen(&mut app, 112, 33).contains("用当前设置替换 office？"));
         app.handle_key(key(KeyCode::Char('y')));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("✓ in use ") && !s.contains("modified"), "{s}");
+        assert!(s.contains("✓ 使用中 ") && !s.contains("（已修改）"), "{s}");
         let file = std::fs::read_to_string(dir.join("presets/office.toml")).unwrap();
         assert!(file.contains("palette = \"nord\""), "{file}");
 
         // Delete it after asking.
         app.handle_key(key(KeyCode::Char('x')));
-        assert!(screen(&mut app, 112, 33).contains("Delete office?"));
+        assert!(screen(&mut app, 112, 33).contains("删除 office？"));
         app.handle_key(key(KeyCode::Char('n')));
         assert!(dir.join("presets/office.toml").exists());
         app.handle_key(key(KeyCode::Delete));
         app.handle_key(key(KeyCode::Char('y')));
         assert!(!dir.join("presets/office.toml").exists());
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("Deleted office") && !s.contains("Office"), "{s}");
+        assert!(s.contains("已删除 office") && !s.contains("Office"), "{s}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -516,12 +520,9 @@ mod tests {
         let mut app = App::new(Doc::open(paths), env());
         app.open_page(PageId::Presets);
         let s = screen(&mut app, 112, 33);
-        assert!(
-            s.contains("Broken") && s.contains("Can't read this file"),
-            "{s}"
-        );
+        assert!(s.contains("Broken") && s.contains("无法读取此文件"), "{s}");
         app.handle_key(key(KeyCode::Enter));
-        assert!(screen(&mut app, 112, 33).contains("Can't use broken"));
+        assert!(screen(&mut app, 112, 33).contains("无法使用 broken"));
         assert!(!app.doc.dirty());
         std::fs::remove_dir_all(&dir).unwrap();
     }

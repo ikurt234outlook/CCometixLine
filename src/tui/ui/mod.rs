@@ -238,6 +238,13 @@ pub fn choice(value: &str) -> Span<'static> {
     Span::styled(format!("‹{value}›"), accent())
 }
 
+/// `label` padded with spaces to `width` display columns, so a column of
+/// labels lines up in any script.
+pub fn pad(label: &str, width: usize) -> String {
+    let used = crate::render::width::display_width(label);
+    format!("{label}{}", " ".repeat(width.saturating_sub(used)))
+}
+
 /// `spans` cut to `width` columns, ending in `…` when anything was cut.
 pub fn clip(spans: Vec<Span<'static>>, width: usize) -> Vec<Span<'static>> {
     let total: usize = spans.iter().map(Span::width).sum();

@@ -13,18 +13,18 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 
 const GROUPS: [(Category, &str); 12] = [
-    (Category::Identity, "Identity"),
-    (Category::Workspace, "Workspace"),
+    (Category::Identity, "身份"),
+    (Category::Workspace, "工作区"),
     (Category::Vcs, "Git"),
-    (Category::Context, "Context"),
-    (Category::Quota, "Quota"),
-    (Category::Cost, "Cost"),
-    (Category::Cache, "Cache"),
-    (Category::Session, "Session"),
-    (Category::Timing, "Timing"),
-    (Category::Activity, "Activity"),
-    (Category::System, "System"),
-    (Category::Custom, "Custom"),
+    (Category::Context, "上下文"),
+    (Category::Quota, "配额"),
+    (Category::Cost, "花费"),
+    (Category::Cache, "缓存"),
+    (Category::Session, "会话"),
+    (Category::Timing, "计时"),
+    (Category::Activity, "活动"),
+    (Category::System, "系统"),
+    (Category::Custom, "自定义"),
 ];
 
 /// Whether a metric can go on the lines being edited.
@@ -249,12 +249,12 @@ impl Library {
             spans.extend(self.search.line(width.saturating_sub(3), true, "").spans);
             Line::from(spans)
         } else if self.query().is_empty() {
-            Line::styled("/ search", ui::muted())
+            Line::styled("/ 搜索", ui::muted())
         } else {
             Line::from(vec![
                 Span::styled("/ ", ui::muted()),
                 Span::styled(self.search.text(), ui::accent()),
-                Span::styled("  esc clear", ui::muted()),
+                Span::styled("  esc 清空", ui::muted()),
             ])
         };
         f.render_widget(Paragraph::new(search_line), search);
@@ -283,7 +283,9 @@ impl Library {
                         let arrow = if *open { "▼" } else { "▶" };
                         let label = format!("{arrow} {name}");
                         let count = count.to_string();
-                        let gap = width.saturating_sub(2 + label.chars().count() + count.len() + 1);
+                        let gap = width.saturating_sub(
+                            2 + crate::render::width::display_width(&label) + count.len() + 1,
+                        );
                         Line::from(vec![
                             marker,
                             Span::styled(label, style.add_modifier(ratatui::style::Modifier::BOLD)),
@@ -321,13 +323,13 @@ impl Library {
         if let Some(m) = self.selected() {
             let note = match avail_of(&m.meta) {
                 Avail::Yes => m.meta.summary.to_string(),
-                Avail::Needs(v) => format!("Needs Claude Code {v}"),
-                Avail::TaskOnly => "Only on the subagent line (t)".into(),
+                Avail::Needs(v) => format!("需要 Claude Code {v}"),
+                Avail::TaskOnly => "只用于子代理行（t）".into(),
             };
             text.push(Line::styled(note, ui::muted()));
         }
         let about_rows = about.height as usize;
-        let legend = Line::styled("S history · 251+ CC · sub task", ui::muted());
+        let legend = Line::styled("S 历史 · 251+ CC · sub", ui::muted());
         let mut p = text;
         while p.len() + 1 < about_rows {
             p.push(Line::raw(""));

@@ -11,18 +11,18 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 pub const GLOBAL: [(&str, &str); 12] = [
-    ("←→", "switch page, on the tab row"),
-    ("↑ esc", "up to the tab row"),
-    ("↓", "from the tab row into the page"),
-    ("^S", "save"),
-    ("^Z ^Y", "undo, redo"),
-    ("[ ]", "preview scenario"),
-    ("- +", "preview width"),
-    ("{", "preview color depth"),
-    ("}", "preview glyphs"),
-    ("?", "this help"),
-    ("q", "quit"),
-    ("^C", "quit"),
+    ("←→", "切换页面（标签行上）"),
+    ("↑ esc", "回到标签行"),
+    ("↓", "从标签行进入页面"),
+    ("^S", "保存"),
+    ("^Z ^Y", "撤销、重做"),
+    ("[ ]", "切换预览场景"),
+    ("- +", "预览宽度"),
+    ("{", "预览色彩深度"),
+    ("}", "预览字形"),
+    ("?", "本帮助"),
+    ("q", "退出"),
+    ("^C", "退出"),
 ];
 
 pub struct Help {
@@ -45,15 +45,14 @@ impl Dialog for Help {
     fn render(&mut self, f: &mut Frame, area: Rect, _: &Cx) {
         let height = (GLOBAL.len() + self.keys.len() + 6) as u16;
         let rect = ui::popup(f, area, 56, height);
-        let mut text = vec![Line::styled(" Everywhere", ui::title())];
+        let mut text = vec![Line::styled(" 全局快捷键", ui::title())];
         text.extend(rows(&GLOBAL));
         text.push(Line::raw(""));
         text.push(Line::styled(format!(" {}", self.page), ui::strong()));
         text.extend(rows(&self.keys));
         f.render_widget(
-            Paragraph::new(text).block(
-                ui::panel("Keys").title_bottom(Line::styled(" any key closes ", ui::muted())),
-            ),
+            Paragraph::new(text)
+                .block(ui::panel("快捷键").title_bottom(Line::styled(" 任意键关闭 ", ui::muted()))),
             rect,
         );
     }

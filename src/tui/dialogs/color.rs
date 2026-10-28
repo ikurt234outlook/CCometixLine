@@ -124,7 +124,7 @@ impl ColorDialog {
             Mode::Palette => Ok(Picked::Token(TOKENS[self.token])),
             Mode::Typed => Color::parse(&self.input.text())
                 .map(Picked::Color)
-                .ok_or_else(|| "Use #rrggbb, 256:n, 16:n or a name like bright_blue.".into()),
+                .ok_or_else(|| "请用 #rrggbb、256:n、16:n，或 bright_blue 之类的颜色名。".into()),
             Mode::Ansi16 => Ok(Picked::Color(Color::Ansi16(self.at16 as u8))),
             Mode::Ansi256 => Ok(Picked::Color(Color::Ansi256(self.at256 as u8))),
         }
@@ -134,8 +134,8 @@ impl ColorDialog {
         let mut spans = vec![Span::raw(" ")];
         for m in self.target.modes() {
             let label = match m {
-                Mode::Palette => "Palette",
-                Mode::Typed => "Typed",
+                Mode::Palette => "配色",
+                Mode::Typed => "输入",
                 Mode::Ansi16 => "16",
                 Mode::Ansi256 => "256",
             };
@@ -153,10 +153,7 @@ impl ColorDialog {
     fn palette_grid(&self, cx: &Cx) -> Vec<Line<'static>> {
         let palette = crate::statusline::theme(&cx.doc.config).palette;
         let depth = cx.preview.depth(cx.doc);
-        let mut lines = vec![Line::styled(
-            " Tokens follow the palette when you switch it:",
-            ui::muted(),
-        )];
+        let mut lines = vec![Line::styled(" 令牌会跟随你切换的配色：", ui::muted())];
         for row in TOKENS.chunks(ROW_TOKENS).enumerate() {
             let (r, tokens) = row;
             let mut spans = vec![Span::raw(" ")];
@@ -219,14 +216,14 @@ impl ColorDialog {
                 vec![
                     Line::from(
                         [
-                            vec![Span::raw(" Color  ")],
+                            vec![Span::raw(" 颜色  ")],
                             self.input.line(24, true, "").spans,
                             vec![Span::raw("   "), preview],
                         ]
                         .concat(),
                     ),
                     Line::styled(
-                        " #rrggbb, #rgb, 256:n, 16:n or a name like bright_blue",
+                        " #rrggbb、#rgb、256:n、16:n，或 bright_blue 之类的颜色名",
                         ui::muted(),
                     ),
                 ]
@@ -278,13 +275,13 @@ impl Dialog for ColorDialog {
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("tab", "mode"),
-            ("arrows", "move"),
-            ("enter", "pick"),
-            ("esc", "cancel"),
+            ("tab", "模式"),
+            ("arrows", "移动"),
+            ("enter", "选取"),
+            ("esc", "取消"),
         ]));
         f.render_widget(
-            Paragraph::new(text).block(ui::panel(&format!("Color · {}", self.target.title()))),
+            Paragraph::new(text).block(ui::panel(&format!("颜色 · {}", self.target.title()))),
             rect,
         );
     }
@@ -316,7 +313,7 @@ impl Dialog for ColorDialog {
                             Target::Custom { apply, .. } => apply(doc, value.clone()),
                         }
                         Reply::Then(Action::Toast(format!(
-                            "{} is now {value}",
+                            "{} 现为 {value}",
                             self.target.title()
                         )))
                     }

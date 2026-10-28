@@ -58,10 +58,10 @@ pub fn label(spec: &ItemSpec) -> String {
 
 fn level_name(l: Option<Level>) -> &'static str {
     match l {
-        Some(Level::Full) => "full",
-        Some(Level::Compact) => "compact",
-        Some(Level::Minimal) => "minimal",
-        None => "dropped",
+        Some(Level::Full) => "完整",
+        Some(Level::Compact) => "紧凑",
+        Some(Level::Minimal) => "极简",
+        None => "丢弃",
     }
 }
 
@@ -84,8 +84,8 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
     let mut rows = Vec::new();
 
     let heading = match view.target {
-        Target::Status => format!("Line {}", n + 1),
-        Target::Subagent => "Each task".to_string(),
+        Target::Status => format!("第 {} 行", n + 1),
+        Target::Subagent => "每个任务".to_string(),
     };
     let mut head = vec![Span::styled(heading.clone(), ui::strong())];
     if let Some(r) = report.filter(|_| edit::count(line) > 0) {
@@ -99,9 +99,9 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
         };
         let meter = match r.breaks.len() {
             0 => format!("{}/{cols}", r.natural),
-            n => format!("{}/{cols} → {} lines", r.natural, n + 1),
+            n => format!("{}/{cols} → {} 行", r.natural, n + 1),
         };
-        let gap = width.saturating_sub(heading.chars().count() + meter.len());
+        let gap = width.saturating_sub(crate::render::width::display_width(&heading) + meter.len());
         head.push(Span::raw(" ".repeat(gap)));
         head.push(Span::styled(meter, Style::default().fg(color)));
     }
@@ -115,7 +115,7 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
     if edit::count(line) == 0 {
         rows.push(Line::from(vec![
             marker,
-            Span::styled("empty · add from the library", ui::muted()),
+            Span::styled("空 · 从左侧库中添加", ui::muted()),
         ]));
         return rows;
     }
@@ -218,33 +218,30 @@ fn narrow_rows(view: &View) -> Vec<Line<'static>> {
     // Gray items are this sample's doing, not the config's.
     let gray = view.reports.iter().any(|r| !r.empty.is_empty()).then(|| {
         Line::styled(
-            format!("gray: nothing to show in ‹{}›", view.scenario),
+            format!("灰色：在 ‹{}› 场景中没有可显示的内容", view.scenario),
             ui::muted(),
         )
     });
     if merged.is_empty() {
         let mut rows = vec![
-            Line::styled(format!("Fits in {cols} columns."), ui::muted()),
+            Line::styled(format!("在 {cols} 列内放得下。"), ui::muted()),
             Line::from(vec![
                 Span::styled("-", ui::accent()),
-                Span::styled(" narrows the preview", ui::muted()),
+                Span::styled(" 收窄预览", ui::muted()),
             ]),
         ];
         rows.extend(gray);
         return rows;
     }
-    let mut rows = vec![Line::styled(
-        format!("Too narrow at {cols} columns:"),
-        ui::muted(),
-    )];
+    let mut rows = vec![Line::styled(format!("在 {cols} 列下太窄："), ui::muted())];
     for (i, (n, label, change)) in merged.into_iter().enumerate() {
         let line = match view.target {
-            Target::Status => format!("L{} ", n + 1),
+            Target::Status => format!("行{} ", n + 1),
             Target::Subagent => String::new(),
         };
         let change = match change {
-            Change::Wraps => Span::styled("↵ wraps here", Style::default().fg(ui::WARN)),
-            Change::Level(_, None) => Span::styled("dropped", Style::default().fg(ui::BAD)),
+            Change::Wraps => Span::styled("↵ 在此换行", Style::default().fg(ui::WARN)),
+            Change::Level(_, None) => Span::styled("丢弃", Style::default().fg(ui::BAD)),
             Change::Level(from, to) => Span::styled(
                 format!("{} → {}", level_name(Some(from)), level_name(to)),
                 Style::default().fg(ui::WARN),
@@ -284,7 +281,7 @@ pub fn render(f: &mut Frame, area: Rect, block: Block<'static>, view: &View) {
         } else {
             (Span::raw("  "), ui::muted())
         };
-        rows.push(Line::from(vec![marker, Span::styled("+ new line", style)]));
+        rows.push(Line::from(vec![marker, Span::styled("+ 新行", style)]));
         rows.push(Line::raw(""));
     }
     rows.extend(narrow_rows(view));

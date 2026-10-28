@@ -126,7 +126,10 @@ impl Form {
                 } else {
                     Style::default()
                 };
-                let mut spans = vec![Span::styled(format!(" {:<LABEL$}", f.label), label_style)];
+                let mut spans = vec![Span::styled(
+                    format!(" {}", ui::pad(f.label, LABEL)),
+                    label_style,
+                )];
                 let room = width.saturating_sub(LABEL + 2);
                 match f.kind {
                     Kind::Text { placeholder } => {

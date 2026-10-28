@@ -18,7 +18,7 @@ use ratatui::widgets::Paragraph;
 use std::path::PathBuf;
 
 const WIDTH: u16 = 76;
-const STEPS: [&str; 4] = ["Detect", "Fonts", "Preset", "Connect"];
+const STEPS: [&str; 4] = ["检测", "字体", "预设", "连接"];
 
 pub struct Setup {
     step: usize,
@@ -69,33 +69,33 @@ impl Setup {
     fn detect(&self, cx: &Cx) -> Vec<Line<'static>> {
         let row = |label: &str, value: String| {
             Line::from(vec![
-                Span::styled(format!("  {label:<14}"), ui::muted()),
+                Span::styled(format!("  {}", ui::pad(label, 14)), ui::muted()),
                 Span::raw(value),
             ])
         };
         let cc = match cx.env.cc_version() {
-            Some(v) => format!("{v}, from your last session"),
-            None => "not seen yet; fine for a first run".into(),
+            Some(v) => format!("{v}，来自你上次的会话"),
+            None => "还没见到；首次使用没关系".into(),
         };
         let status = match Settings::load(&self.settings).map(|s| s.status_line()) {
-            Ok(Some(l)) if cc_settings::is_ccline(&l.command) => "runs ccline".to_string(),
-            Ok(Some(l)) => format!("runs {}", crate::render::width::truncate(&l.command, 40)),
-            Ok(None) => "not set".into(),
+            Ok(Some(l)) if cc_settings::is_ccline(&l.command) => "已在运行 ccline".to_string(),
+            Ok(Some(l)) => format!("运行 {}", crate::render::width::truncate(&l.command, 40)),
+            Ok(None) => "未设置".into(),
             Err(e) => e,
         };
         let config = match &cx.doc.note {
-            LoadNote::Missing => "none yet".to_string(),
-            LoadNote::Invalid(e) => format!("unreadable ({e}); replaced when saved"),
-            LoadNote::Fine => "your config.toml".into(),
+            LoadNote::Missing => "还没有".to_string(),
+            LoadNote::Invalid(e) => format!("无法读取（{e}）；保存时会替换"),
+            LoadNote::Fine => "你的 config.toml".into(),
         };
         let depth = format!("{:?}", crate::env::color_depth()).to_lowercase();
         vec![
-            Line::raw(" ccline found:"),
+            Line::raw(" ccline 检测到："),
             Line::raw(""),
             row("Claude Code", cc),
             row("statusLine", status),
-            row("config", config),
-            row("colors", depth),
+            row("配置", config),
+            row("颜色", depth),
         ]
     }
 
@@ -114,7 +114,7 @@ impl Setup {
             .join("  ")
         };
         vec![
-            Line::raw(" Do these show as icons, not boxes or question marks?"),
+            Line::raw(" 这些是否显示为图标，而不是方框或问号？"),
             Line::raw(""),
             Line::from(vec![
                 Span::styled("   Nerd      ", ui::muted()),
@@ -133,7 +133,7 @@ impl Setup {
     fn presets(&self, cx: &Cx) -> Vec<Line<'static>> {
         let registry = cx.doc.registry();
         let mut lines = vec![
-            Line::raw(" Pick a starting point; everything can be changed later."),
+            Line::raw(" 挑一个起点；之后所有内容都能改。"),
             Line::raw(""),
         ];
         for (i, p) in PRESETS.iter().enumerate() {
@@ -174,18 +174,18 @@ impl Setup {
         match self.connection() {
             Err(e) => {
                 lines.push(Line::styled(
-                    format!(" Can't change settings.json: {e}"),
+                    format!(" 无法修改 settings.json：{e}"),
                     Style::default().fg(ui::BAD),
                 ));
             }
             Ok(None) => {
                 lines.push(Line::styled(
-                    " Claude Code already runs ccline.",
+                    " Claude Code 已经在运行 ccline。",
                     Style::default().fg(ui::OK),
                 ));
             }
             Ok(Some((base, draft))) => {
-                lines.push(Line::raw(" Point Claude Code's status line at ccline:"));
+                lines.push(Line::raw(" 让 Claude Code 的状态栏指向 ccline："));
                 lines.push(Line::raw(""));
                 for (mark, line) in draft.diff(&base).into_iter().take(10) {
                     let (sign, style) = match mark {
@@ -201,9 +201,9 @@ impl Setup {
                 lines.push(Line::raw(""));
                 lines.push(Line::styled(
                     if base.exists() {
-                        " The old file is kept as settings.json.ccline-bak."
+                        " 旧文件会保留为 settings.json.ccline-bak。"
                     } else {
-                        " There is no settings.json yet; this creates it."
+                        " 还没有 settings.json；这一步会创建它。"
                     },
                     ui::muted(),
                 ));
@@ -214,21 +214,17 @@ impl Setup {
 
     fn hints(&self) -> Line<'static> {
         match self.step {
-            0 => ui::hints(&[("enter", "next"), ("esc", "skip setup")]),
+            0 => ui::hints(&[("enter", "下一步"), ("esc", "跳过设置")]),
             1 => ui::hints(&[
-                ("N", "Nerd Font"),
-                ("U", "Unicode only"),
-                ("A", "ASCII only"),
-                ("esc", "skip setup"),
+                ("N", "Nerd 字体"),
+                ("U", "仅 Unicode"),
+                ("A", "仅 ASCII"),
+                ("esc", "跳过设置"),
             ]),
-            2 => ui::hints(&[("↑↓", "choose"), ("enter", "use it"), ("esc", "skip setup")]),
+            2 => ui::hints(&[("↑↓", "选择"), ("enter", "使用"), ("esc", "跳过设置")]),
             _ => match self.connection() {
-                Ok(Some(_)) => ui::hints(&[
-                    ("Y", "apply and finish"),
-                    ("S", "skip this"),
-                    ("esc", "close"),
-                ]),
-                _ => ui::hints(&[("enter", "finish"), ("esc", "close")]),
+                Ok(Some(_)) => ui::hints(&[("Y", "应用并完成"), ("S", "跳过"), ("esc", "关闭")]),
+                _ => ui::hints(&[("enter", "完成"), ("esc", "关闭")]),
             },
         }
     }
@@ -257,7 +253,7 @@ impl Dialog for Setup {
         text.push(Line::raw(""));
         text.push(self.hints());
         let title = format!(
-            "Setup · step {} of {} · {}",
+            "设置 · 第 {} / {} 步 · {}",
             self.step + 1,
             STEPS.len(),
             STEPS[self.step].to_lowercase()
@@ -298,9 +294,7 @@ impl Dialog for Setup {
                 if let Ok(Some((base, draft))) = self.connection()
                     && let Err(e) = draft.save(&base)
                 {
-                    return Reply::Then(Action::Error(format!(
-                        "Couldn't write settings.json: {e}"
-                    )));
+                    return Reply::Then(Action::Error(format!("无法写入 settings.json：{e}")));
                 }
                 return self.finish();
             }

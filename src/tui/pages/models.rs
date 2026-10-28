@@ -76,19 +76,19 @@ fn seen_ids(env: &Env) -> Vec<(String, Option<u64>)> {
 
 fn ago(now: i64, t: i64) -> String {
     match (now - t).max(0) {
-        s if s < 60 => "just now".into(),
-        s if s < 3_600 => format!("{}m ago", s / 60),
-        s if s < 86_400 => format!("{}h ago", s / 3_600),
-        s => format!("{}d ago", s / 86_400),
+        s if s < 60 => "刚刚".into(),
+        s if s < 3_600 => format!("{} 分钟前", s / 60),
+        s if s < 86_400 => format!("{} 小时前", s / 3_600),
+        s => format!("{} 天前", s / 86_400),
     }
 }
 
 fn kind_name(k: MatchKind) -> &'static str {
     match k {
-        MatchKind::Contains => "contains",
-        MatchKind::Prefix => "prefix",
-        MatchKind::Exact => "exact",
-        MatchKind::Regex => "regex",
+        MatchKind::Contains => "包含",
+        MatchKind::Prefix => "前缀",
+        MatchKind::Exact => "精确",
+        MatchKind::Regex => "正则",
     }
 }
 
@@ -111,11 +111,11 @@ fn test_id(
     let assumed = cc_assumes(id);
     let r = registry.resolve(id, None, Some(assumed));
     let source = match r.source {
-        NameSource::UserRule(i) => format!("rule #{} ({})", i + 1, kind_name(rules[i].match_kind)),
-        NameSource::ClaudeCode => "Claude Code's name".into(),
-        NameSource::Builtin if builtin::claude_model(id).is_some() => "Claude model".into(),
-        NameSource::Builtin => "built-in rule".into(),
-        NameSource::RawId => "not recognized".into(),
+        NameSource::UserRule(i) => format!("规则 #{}（{}）", i + 1, kind_name(rules[i].match_kind)),
+        NameSource::ClaudeCode => "Claude Code 的名称".into(),
+        NameSource::Builtin if builtin::claude_model(id).is_some() => "Claude 模型".into(),
+        NameSource::Builtin => "内置规则".into(),
+        NameSource::RawId => "未识别".into(),
     };
     let window = r.window.unwrap_or(assumed);
     let line = Line::from(vec![
@@ -160,13 +160,10 @@ impl Models {
 
     fn render_unrecognized(&self, f: &mut Frame, area: Rect, cx: &Cx, list: &[Unrecognized]) {
         let focused = cx.focused && self.pane == Pane::Unrecognized;
-        let block = focused_panel("Unrecognized ids", focused)
-            .title_top(Line::styled(" from recent sessions ", ui::muted()).right_aligned());
+        let block = focused_panel("未识别的 id", focused)
+            .title_top(Line::styled(" 来自最近会话 ", ui::muted()).right_aligned());
         let lines: Vec<Line> = if list.is_empty() {
-            vec![Line::styled(
-                " · Every model id seen recently is recognized.",
-                ui::muted(),
-            )]
+            vec![Line::styled(" · 最近见到的模型 id 都已识别。", ui::muted())]
         } else {
             let rows = area.height.saturating_sub(2) as usize;
             let start = self.unrec.saturating_sub(rows.saturating_sub(1));
@@ -181,16 +178,17 @@ impl Models {
                         marker(on),
                         Span::styled("! ", Style::default().fg(ui::WARN)),
                         Span::styled(
-                            format!("{:<28}", u.id),
+                            ui::pad(&u.id, 28),
                             if on { ui::accent() } else { Style::default() },
                         ),
                         Span::raw(format!(
-                            "seen {:<5} {:<9}  CC assumes {window:<11}",
-                            format!("{}×", u.count),
-                            ago(cx.env.now, u.last)
+                            "见过 {} {}  CC 假设 {}",
+                            ui::pad(&format!("{}×", u.count), 5),
+                            ui::pad(&ago(cx.env.now, u.last), 9),
+                            ui::pad(&window, 11)
                         )),
                         Span::styled("A", ui::accent()),
-                        Span::raw(" add rule"),
+                        Span::raw(" 添加规则"),
                     ])
                 })
                 .collect()
@@ -216,10 +214,10 @@ impl Models {
             .enumerate()
             .map(|(i, r)| {
                 let warning = if r.regex_error().is_some() {
-                    Span::styled("! bad regex", Style::default().fg(ui::BAD))
+                    Span::styled("! 正则无效", Style::default().fg(ui::BAD))
                 } else if let Some(by) = shadowed[i] {
                     Span::styled(
-                        format!("! #{} matches first", by + 1),
+                        format!("! 被 #{} 抢先", by + 1),
                         Style::default().fg(ui::WARN),
                     )
                 } else {
@@ -242,10 +240,7 @@ impl Models {
         if rules.is_empty() {
             rows.push(Row::new(vec![
                 Cell::from(""),
-                Cell::from(Span::styled(
-                    "No rules yet. Press N to add one, or A for an id above.",
-                    ui::muted(),
-                )),
+                Cell::from(Span::styled("无规则", ui::muted())),
             ]));
         }
         if self.builtins {
@@ -253,12 +248,12 @@ impl Models {
                 rows.push(
                     Row::new(vec![
                         Cell::from("·"),
-                        Cell::from("built-in"),
+                        Cell::from("内置"),
                         Cell::from(b.pattern),
                         Cell::from(b.name),
                         Cell::from(Line::from(grouped(b.window)).right_aligned()),
                         Cell::from(""),
-                        Cell::from("read-only"),
+                        Cell::from("只读"),
                     ])
                     .style(ui::muted()),
                 );
@@ -266,25 +261,15 @@ impl Models {
             rows.push(
                 Row::new(vec![
                     Cell::from("·"),
-                    Cell::from("built-in"),
-                    Cell::from(
-                        "Claude ids in any provider's spelling (Bedrock, Vertex, OpenRouter…)",
-                    ),
+                    Cell::from("内置"),
+                    Cell::from("各家的 Claude id 写法（Bedrock、Vertex、OpenRouter…）"),
                 ])
                 .style(ui::muted()),
             );
         }
 
-        let header = Row::new([
-            "#",
-            "match",
-            "pattern",
-            "display name",
-            "context",
-            "hits",
-            "",
-        ])
-        .style(ui::muted());
+        let header =
+            Row::new(["#", "匹配", "模式", "显示名称", "上下文", "命中", ""]).style(ui::muted());
         let widths = [
             Constraint::Length(3),
             Constraint::Length(9),
@@ -296,17 +281,17 @@ impl Models {
         ];
         let hints = if focused {
             ui::hints(&[
-                ("N", "new"),
-                ("enter", "edit"),
-                ("del", "delete"),
-                ("alt+↑↓", "reorder"),
-                ("B", "built-ins"),
+                ("N", "新建"),
+                ("enter", "编辑"),
+                ("del", "删除"),
+                ("alt+↑↓", "调整顺序"),
+                ("B", "内置规则"),
             ])
         } else {
             Line::raw("")
         };
-        let block = focused_panel("Rules", focused)
-            .title_top(Line::styled(" first match wins ", ui::muted()).right_aligned())
+        let block = focused_panel("规则", focused)
+            .title_top(Line::styled(" 先匹配者生效 ", ui::muted()).right_aligned())
             .title_bottom(hints);
         let table = Table::new(rows, widths)
             .header(header)
@@ -350,17 +335,17 @@ impl Models {
         lines.push(Line::from(vec![
             Span::raw("  "),
             Span::styled(
-                format!("{}   built-in", describe("[1m]", " 1M", Some(CC_1M))),
+                format!("{}   内置", describe("[1m]", " 1M", Some(CC_1M))),
                 ui::muted(),
             ),
         ]));
         let hints = if focused {
-            ui::hints(&[("N", "new"), ("enter", "edit"), ("del", "delete")])
+            ui::hints(&[("N", "新建"), ("enter", "编辑"), ("del", "删除")])
         } else {
             Line::raw("")
         };
         f.render_widget(
-            Paragraph::new(lines).block(focused_panel("Modifiers", focused).title_bottom(hints)),
+            Paragraph::new(lines).block(focused_panel("修饰符", focused).title_bottom(hints)),
             area,
         );
     }
@@ -374,47 +359,36 @@ impl Models {
                     Span::styled("id ", ui::muted()),
                     Span::styled(ui::SELECTED, ui::accent()),
                 ],
-                self.tester
-                    .line(width, focused, "type or paste a model id")
-                    .spans,
+                self.tester.line(width, focused, "输入或粘贴模型 id").spans,
             ]
             .concat(),
         )];
         let id = self.tester.text();
         let id = id.trim();
         if id.is_empty() {
-            lines.push(Line::styled(
-                "Shows how an id resolves, as you type.",
-                ui::muted(),
-            ));
+            lines.push(Line::styled("边输入边显示 id 的解析结果。", ui::muted()));
         } else {
             let (result, fix) = test_id(id, registry, &cx.doc.models.rules);
             lines.push(result);
             if let Some(fix) = fix {
                 lines.push(Line::styled(
-                    format!(
-                        "! Claude Code assumes {} for it. Set",
-                        grouped(cc_assumes(id))
-                    ),
+                    format!("! Claude Code 为它假设 {}。设置", grouped(cc_assumes(id))),
                     Style::default().fg(ui::WARN),
                 ));
                 lines.push(Line::from(vec![
                     Span::raw("  "),
                     Span::styled(fix, ui::accent()),
                 ]));
-                lines.push(Line::styled(
-                    "  so auto-compact uses the real window.",
-                    ui::muted(),
-                ));
+                lines.push(Line::styled("  这样自动压缩才会用真实窗口。", ui::muted()));
             }
         }
         let hints = if focused {
-            ui::hints(&[("enter", "copy the env line"), ("esc", "leave")])
+            ui::hints(&[("enter", "复制环境变量行"), ("esc", "离开")])
         } else {
             Line::raw("")
         };
         f.render_widget(
-            Paragraph::new(lines).block(focused_panel("Tester", focused).title_bottom(hints)),
+            Paragraph::new(lines).block(focused_panel("测试器", focused).title_bottom(hints)),
             area,
         );
     }
@@ -484,9 +458,7 @@ impl Page for Models {
                     let id = self.tester.text();
                     match test_id(id.trim(), &registry, &doc.models.rules).1 {
                         Some(fix) if !id.trim().is_empty() => Outcome::Copy(fix),
-                        _ => Outcome::Toast(
-                            "Nothing to copy: Claude Code already uses this window".into(),
-                        ),
+                        _ => Outcome::Toast("没有可复制的：Claude Code 已经在用这个窗口".into()),
                     }
                 }
                 _ if self.tester.handle(key) => Outcome::Consumed,
@@ -498,7 +470,7 @@ impl Page for Models {
             let pick = list.get(self.unrec).or(list.first());
             return match pick {
                 Some(u) => self.open_rule(env, Some(&u.id)),
-                None => Outcome::Toast("Every model id seen recently is recognized".into()),
+                None => Outcome::Toast("最近见到的模型 id 都已识别".into()),
             };
         }
 
@@ -543,7 +515,7 @@ impl Page for Models {
                         doc.edit(|_, m| {
                             m.rules.remove(i);
                         });
-                        return Outcome::Toast(format!("Deleted rule #{} (^Z undoes)", i + 1));
+                        return Outcome::Toast(format!("已删除规则 #{}（^Z 可撤销）", i + 1));
                     }
                     _ => return Outcome::Ignored,
                 }
@@ -569,7 +541,7 @@ impl Page for Models {
                         doc.edit(|_, m| {
                             m.context_modifiers.remove(i);
                         });
-                        return Outcome::Toast("Deleted modifier (^Z undoes)".into());
+                        return Outcome::Toast("已删除修饰符（^Z 可撤销）".into());
                     }
                     _ => return Outcome::Ignored,
                 }
@@ -582,15 +554,15 @@ impl Page for Models {
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
         match self.pane {
             Pane::Tester => vec![
-                ("tab", "pane"),
-                ("enter", "copy env line"),
-                ("esc", "leave tester"),
+                ("tab", "面板"),
+                ("enter", "复制环境变量行"),
+                ("esc", "离开测试器"),
             ],
             _ => vec![
-                ("tab", "pane"),
-                ("↑↓", "move"),
-                ("enter", "edit"),
-                ("A", "add from unrecognized"),
+                ("tab", "面板"),
+                ("↑↓", "移动"),
+                ("enter", "编辑"),
+                ("A", "从未识别项添加"),
             ],
         }
     }
@@ -617,6 +589,7 @@ impl Page for Models {
 #[cfg(test)]
 mod tests {
     use crate::models::{MatchKind, Rule};
+    use crate::render::width::display_width;
     use crate::state::models_seen::Seen;
     use crate::tui::app::App;
     use crate::tui::app::tests::{ctrl, env, key, screen};
@@ -658,10 +631,10 @@ mod tests {
         app.open_page(PageId::Models);
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("kimi-k3-preview") && s.contains("seen 12×") && s.contains("2m ago"),
+            s.contains("kimi-k3-preview") && s.contains("12×") && s.contains("2 分钟前"),
             "{s}"
         );
-        assert!(s.contains("deepseek-v4-chat") && s.contains("1d ago"));
+        assert!(s.contains("deepseek-v4-chat") && s.contains("1 天前"));
         assert!(
             !s.contains("claude-opus-4-8  "),
             "Claude ids are recognized"
@@ -673,7 +646,7 @@ mod tests {
         app.handle_key(key(KeyCode::Char('a')));
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("New rule") && s.contains("Kimi K3 Preview"),
+            s.contains("新建规则") && s.contains("Kimi K3 Preview"),
             "{s}"
         );
         app.handle_key(key(KeyCode::Tab));
@@ -682,8 +655,8 @@ mod tests {
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(app.doc.models.rules.len(), 1);
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("Added rule #1"), "{s}");
-        assert!(!s.contains("seen 12×"), "no longer unrecognized: {s}");
+        assert!(s.contains("已添加规则 #1"), "{s}");
+        assert!(!s.contains("12×"), "no longer unrecognized: {s}");
         assert!(s.contains("models.toml *"));
 
         // Tester: resolves through the new rule and offers the env line.
@@ -692,7 +665,7 @@ mod tests {
         app.paste("kimi-k3-preview\n");
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("Kimi K3 Preview · 256,000") && s.contains("rule #1 (contains)"),
+            s.contains("Kimi K3 Preview · 256,000") && s.contains("规则 #1（包含）"),
             "{s}"
         );
         assert!(s.contains("CLAUDE_CODE_MAX_CONTEXT_TOKENS=256000"), "{s}");
@@ -703,7 +676,7 @@ mod tests {
         app.handle_key(key(KeyCode::Backspace));
         app.handle_key(key(KeyCode::Enter));
         assert!(
-            screen(&mut app, 112, 33).contains("Copied: CLAUDE_CODE_MAX_CONTEXT_TOKENS=256000")
+            screen(&mut app, 112, 33).contains("已复制：CLAUDE_CODE_MAX_CONTEXT_TOKENS=256000")
         );
 
         app.handle_key(key(KeyCode::Esc));
@@ -735,14 +708,14 @@ mod tests {
         });
         let mut app = App::new(doc, env());
         app.open_page(PageId::Models);
-        assert!(screen(&mut app, 112, 33).contains("! #1 matches first"));
+        assert!(screen(&mut app, 112, 33).contains("被 #1 抢先"));
         app.handle_key(key(KeyCode::Down));
         app.handle_key(ratatui::crossterm::event::KeyEvent::new(
             KeyCode::Up,
             ratatui::crossterm::event::KeyModifiers::ALT,
         ));
         assert_eq!(app.doc.models.rules[0].pattern, "kimi-k2-0905");
-        assert!(!screen(&mut app, 112, 33).contains("matches first"));
+        assert!(!screen(&mut app, 112, 33).contains("抢先"));
         app.handle_key(key(KeyCode::Char('b')));
         assert!(screen(&mut app, 112, 33).contains("Kimi K2 Turbo"));
         app.handle_key(key(KeyCode::Delete));
@@ -767,7 +740,7 @@ mod tests {
         app.handle_key(key(KeyCode::Left));
         let column = |s: &str| {
             let row = s.lines().find(|l| l.contains("Kimi")).unwrap();
-            row[..row.find("contains").unwrap()].chars().count()
+            display_width(&row[..row.find("包含").unwrap()])
         };
         let on_tabs = column(&screen(&mut app, 112, 33));
         app.handle_key(key(KeyCode::Down));
@@ -784,7 +757,7 @@ mod tests {
         app.open_page(PageId::Models);
         let s = screen(&mut app, 80, 24);
         assert!(
-            s.contains("Rules") && s.contains("Tester") && s.contains("Modifiers"),
+            s.contains("规则") && s.contains("测试器") && s.contains("修饰符"),
             "{s}"
         );
         std::fs::remove_dir_all(&dir).unwrap();

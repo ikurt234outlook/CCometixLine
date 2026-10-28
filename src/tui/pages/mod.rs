@@ -53,11 +53,11 @@ impl PageId {
 
     pub fn title(self) -> &'static str {
         match self {
-            PageId::Home => "Home",
-            PageId::Presets => "Presets",
-            PageId::Layout => "Layout",
-            PageId::Style => "Style",
-            PageId::Models => "Models",
+            PageId::Home => "主页",
+            PageId::Presets => "预设",
+            PageId::Layout => "布局",
+            PageId::Style => "外观",
+            PageId::Models => "模型",
             PageId::Claude => "Claude Code",
         }
     }

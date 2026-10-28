@@ -14,7 +14,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-const KINDS: &[&str] = &["contains", "prefix", "exact", "regex"];
+const KINDS: &[&str] = &["包含", "前缀", "精确", "正则"];
 /// Recently seen ids listed against the draft.
 const SHOWN: usize = 6;
 const WIDTH: u16 = 76;
@@ -54,11 +54,11 @@ pub fn guess_name(id: &str) -> String {
 /// `= 256,000 tokens`, or what's wrong with the text.
 fn window_note(text: &str) -> Span<'static> {
     if text.trim().is_empty() {
-        return Span::styled("keep Claude Code's", ui::muted());
+        return Span::styled("沿用 Claude Code 的", ui::muted());
     }
     match parse_window(text) {
         Some(n) => Span::styled(format!("= {} tokens", grouped(n)), ui::muted()),
-        None => Span::styled("use 256k, 1m or 256000", Style::default().fg(ui::BAD)),
+        None => Span::styled("用 256k、1m 或 256000", Style::default().fg(ui::BAD)),
     }
 }
 
@@ -103,10 +103,10 @@ impl RuleDialog {
     ) -> Self {
         let form = Form::new(
             vec![
-                Field::choice("Match", KINDS, kind),
-                Field::text("Pattern", pattern, "part of the model id"),
-                Field::text("Display name", name, "as shown on the line"),
-                Field::text("Context", window, "e.g. 256k"),
+                Field::choice("匹配", KINDS, kind),
+                Field::text("模式", pattern, "模型 id 的一部分"),
+                Field::text("显示名称", name, "显示在状态行上的名称"),
+                Field::text("上下文", window, "例如 256k"),
             ],
             // A new rule from an id starts at the name; otherwise the pattern.
             if index.is_none() && !pattern.is_empty() {
@@ -128,13 +128,13 @@ impl RuleDialog {
         let f = &self.form.fields;
         let pattern = f[1].value();
         if pattern.is_empty() {
-            return Err("The pattern can't be empty.".into());
+            return Err("模式不能为空。".into());
         }
         let window = f[3].value();
         let context_limit = if window.is_empty() {
             None
         } else {
-            Some(parse_window(&window).ok_or("The context isn't a size like 256k.")?)
+            Some(parse_window(&window).ok_or("上下文不是 256k 这样的尺寸。")?)
         };
         let name = f[2].value();
         let rule = Rule {
@@ -145,7 +145,7 @@ impl RuleDialog {
         };
         if let Some(e) = rule.regex_error() {
             return Err(format!(
-                "Not a valid regex: {}",
+                "正则表达式无效：{}",
                 e.lines().last().unwrap_or("")
             ));
         }
@@ -163,7 +163,7 @@ impl RuleDialog {
             }
         };
         if self.seen.is_empty() {
-            return vec![Line::styled("   No model ids seen yet.", ui::muted())];
+            return vec![Line::styled("   还没见过任何模型 id。", ui::muted())];
         }
         self.seen
             .iter()
@@ -173,7 +173,7 @@ impl RuleDialog {
                     let name = rule
                         .display_name
                         .clone()
-                        .unwrap_or_else(|| "(name unchanged)".into());
+                        .unwrap_or_else(|| "（名称不变）".into());
                     let window = rule
                         .context_limit
                         .or(*cc_window)
@@ -184,7 +184,7 @@ impl RuleDialog {
                         Span::raw(format!("{id:<28} → {name}{window}")),
                     ])
                 } else {
-                    Line::styled(format!("   · {id:<28}   not matched"), ui::muted())
+                    Line::styled(format!("   · {id:<28}   未匹配"), ui::muted())
                 }
             })
             .collect()
@@ -209,21 +209,21 @@ impl Dialog for RuleDialog {
         ];
         let mut text = self.form.lines(WIDTH as usize - 2, &notes);
         text.push(Line::raw(""));
-        text.push(Line::raw(" Against ids seen recently:"));
+        text.push(Line::raw(" 与最近见过的 id 对比："));
         text.extend(matches);
         if let Some(e) = &self.error {
             text.push(Line::styled(format!(" {e}"), Style::default().fg(ui::BAD)));
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("enter", "save"),
-            ("esc", "cancel"),
-            ("tab", "next field"),
-            ("←→", "match"),
+            ("enter", "保存"),
+            ("esc", "取消"),
+            ("tab", "下一字段"),
+            ("←→", "匹配方式"),
         ]));
         let title = match self.index {
-            Some(i) => format!("Edit rule #{}", i + 1),
-            None => "New rule".into(),
+            Some(i) => format!("编辑规则 #{}", i + 1),
+            None => "新建规则".into(),
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
@@ -242,7 +242,7 @@ impl Dialog for RuleDialog {
                     doc.edit(|_, m| match index {
                         Some(i) => {
                             m.rules[i] = rule;
-                            message = format!("Updated rule #{}", i + 1);
+                            message = format!("已更新规则 #{}", i + 1);
                         }
                         None => {
                             // Go before the first rule that would take this
@@ -252,7 +252,7 @@ impl Dialog for RuleDialog {
                                 .flatten()
                                 .unwrap_or(m.rules.len());
                             m.rules.insert(at, rule);
-                            message = format!("Added rule #{}", at + 1);
+                            message = format!("已添加规则 #{}", at + 1);
                         }
                     });
                     Reply::Then(Action::Toast(message))
@@ -284,9 +284,9 @@ impl ModifierDialog {
             index,
             form: Form::new(
                 vec![
-                    Field::text("Pattern", &m.pattern, "e.g. [1m]"),
-                    Field::text("Name suffix", &m.display_suffix, "e.g.  1M"),
-                    Field::text("Context", &window, "e.g. 1m"),
+                    Field::text("模式", &m.pattern, "例如 [1m]"),
+                    Field::text("名称后缀", &m.display_suffix, "例如  1M"),
+                    Field::text("上下文", &window, "例如 1m"),
                 ],
                 0,
             ),
@@ -298,13 +298,13 @@ impl ModifierDialog {
         let f = &self.form.fields;
         let pattern = f[0].value();
         if pattern.is_empty() {
-            return Err("The pattern can't be empty.".into());
+            return Err("模式不能为空。".into());
         }
         let window = f[2].value();
         let context_limit = if window.is_empty() {
             None
         } else {
-            Some(parse_window(&window).ok_or("The context isn't a size like 1m.")?)
+            Some(parse_window(&window).ok_or("上下文不是 1m 这样的尺寸。")?)
         };
         // Keep the suffix's leading space: it separates it from the name.
         Ok(Modifier {
@@ -330,7 +330,7 @@ impl Dialog for ModifierDialog {
         ];
         let mut text = self.form.lines(WIDTH as usize - 2, &notes);
         text.push(Line::styled(
-            " Ids containing the pattern get the suffix and, if set, the context.",
+            " 匹配到该模式的 id 会加上后缀；若设置了上下文，也会一并应用。",
             ui::muted(),
         ));
         if let Some(e) = &self.error {
@@ -338,14 +338,14 @@ impl Dialog for ModifierDialog {
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("enter", "save"),
-            ("esc", "cancel"),
-            ("tab", "next field"),
+            ("enter", "保存"),
+            ("esc", "取消"),
+            ("tab", "下一字段"),
         ]));
         let title = if self.index.is_some() {
-            "Edit modifier"
+            "编辑修饰符"
         } else {
-            "New modifier"
+            "新建修饰符"
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(title)), rect);
     }
@@ -364,7 +364,7 @@ impl Dialog for ModifierDialog {
                         Some(i) => m.context_modifiers[i] = modifier,
                         None => m.context_modifiers.push(modifier),
                     });
-                    Reply::Then(Action::Toast("Saved modifier".into()))
+                    Reply::Then(Action::Toast("已保存修饰符".into()))
                 }
             },
             _ => {
@@ -452,7 +452,7 @@ mod tests {
             d.handle(key(KeyCode::Enter), &mut doc),
             Reply::Stay
         ));
-        assert!(d.error.as_deref().unwrap().starts_with("Not a valid regex"));
+        assert!(d.error.as_deref().unwrap().starts_with("正则表达式无效"));
         assert!(doc.models.rules.is_empty());
         std::fs::remove_dir_all(&dir).unwrap();
     }

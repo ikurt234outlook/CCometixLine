@@ -75,7 +75,7 @@ fn step<T: PartialEq + Copy>(all: &[T], current: T, forward: bool) -> T {
 }
 
 fn on_off(on: bool) -> Span<'static> {
-    ui::choice(if on { "on" } else { "off" })
+    ui::choice(if on { "开" } else { "关" })
 }
 
 impl ClaudePage {
@@ -120,7 +120,7 @@ impl ClaudePage {
     /// Change the status line; there must be one first.
     fn edit_line(&mut self, f: impl FnOnce(&mut StatusLine)) -> Outcome {
         let Some(mut line) = self.current().and_then(Settings::status_line) else {
-            return Outcome::Toast("Set the command first".into());
+            return Outcome::Toast("请先设置 command".into());
         };
         f(&mut line);
         self.edit(|d| d.set_status_line(Some(&line)));
@@ -138,7 +138,7 @@ impl ClaudePage {
     fn review(&self) -> Outcome {
         match self.diff() {
             Some(diff) => Outcome::Open(Box::new(diff)),
-            None => Outcome::Toast("No changes to apply".into()),
+            None => Outcome::Toast("没有要应用的更改".into()),
         }
     }
 
@@ -165,7 +165,7 @@ impl ClaudePage {
         let mut spans = vec![
             Span::styled(if on { ui::SELECTED } else { "  " }, ui::accent()),
             Span::styled(
-                format!("{label:<w$}"),
+                ui::pad(label, w),
                 if on { ui::accent() } else { Style::default() },
             ),
         ];
@@ -176,7 +176,7 @@ impl ClaudePage {
     /// A row that only shows something, aligned with `pane`'s rows.
     fn info(pane: Pane, label: &str, value: Span<'static>, width: usize) -> Line<'static> {
         let w = label_width(pane);
-        let mut spans = vec![Span::raw(format!("  {label:<w$}"))];
+        let mut spans = vec![Span::raw(format!("  {}", ui::pad(label, w)))];
         spans.extend(ui::clip(vec![value], width.saturating_sub(2 + w)));
         Line::from(spans)
     }
@@ -188,10 +188,10 @@ impl ClaudePage {
         let at = (cx, width);
         let lines = match (&self.base, self.current()) {
             (Some(Err(e)), _) => vec![
-                Line::styled(format!("Can't edit it: {e}"), Style::default().fg(ui::BAD)),
-                Line::styled("Fix the file by hand, then come back.", ui::muted()),
+                Line::styled(format!("无法编辑：{e}"), Style::default().fg(ui::BAD)),
+                Line::styled("请手动修好这个文件，再回来。", ui::muted()),
             ],
-            (_, None) => vec![Line::styled("Reading…", ui::muted())],
+            (_, None) => vec![Line::styled("读取中…", ui::muted())],
             (_, Some(s)) => {
                 let line = s.status_line();
                 let room = width.saturating_sub(2 + label_width(Pane::StatusLine) + 2);
@@ -206,9 +206,9 @@ impl ClaudePage {
                             &l.command,
                             room.saturating_sub(11),
                         )),
-                        Span::styled("  not ccline", Style::default().fg(ui::WARN)),
+                        Span::styled("  非 ccline", Style::default().fg(ui::WARN)),
                     ],
-                    None => vec![Span::styled("not set", Style::default().fg(ui::WARN))],
+                    None => vec![Span::styled("未设置", Style::default().fg(ui::WARN))],
                 };
                 let l = line.clone().unwrap_or_default();
                 let has = line.is_some();
@@ -222,8 +222,8 @@ impl ClaudePage {
                 let refresh = match l.refresh_interval {
                     Some(n) => vec![ui::choice(&format!("{n}s"))],
                     None => vec![
-                        ui::choice("not set"),
-                        Span::styled("  2s keeps timers live", ui::muted()),
+                        ui::choice("未设置"),
+                        Span::styled("  2s 可让计时器持续刷新", ui::muted()),
                     ],
                 };
                 let pane = Pane::StatusLine;
@@ -240,16 +240,16 @@ impl ClaudePage {
                     self.row(
                         pane,
                         3,
-                        "hide vim mode",
+                        "隐藏 vim 模式",
                         value(vec![on_off(l.hide_vim_mode_indicator.unwrap_or(false))]),
                         at,
                     ),
                     Line::raw(""),
                 ];
                 let apply = if self.pending() {
-                    Span::styled("review and apply changes…", Style::default().fg(ui::WARN))
+                    Span::styled("查看并应用更改…", Style::default().fg(ui::WARN))
                 } else {
-                    Span::styled("no changes", ui::muted())
+                    Span::styled("无更改", ui::muted())
                 };
                 let on = cx.focused && self.pane == pane && self.rows[0] == 4;
                 out.push(Line::from(vec![
@@ -264,7 +264,7 @@ impl ClaudePage {
                     out.push(Line::from(ui::clip(
                         vec![
                             Span::styled("enter", ui::accent()),
-                            Span::styled(" on command uses ", ui::muted()),
+                            Span::styled(" 在 command 上使用 ", ui::muted()),
                             Span::raw(cc_settings::suggested_command()),
                         ],
                         width,
@@ -278,7 +278,7 @@ impl ClaudePage {
 
     fn render_agents(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Agents;
-        let block = self.block("Agent panel · subagentStatusLine".into(), Some(pane), cx);
+        let block = self.block("Agent 面板 · subagentStatusLine".into(), Some(pane), cx);
         let width = block.inner(area).width as usize;
         let enabled = self
             .current()
@@ -301,17 +301,17 @@ impl ClaudePage {
             summary = format!("{summary} ⇥ {}", ids(&line.right));
         }
         let text = vec![
-            self.row(pane, 0, "enabled", vec![on_off(enabled)], (cx, width)),
+            self.row(pane, 0, "启用", vec![on_off(enabled)], (cx, width)),
             self.row(
                 pane,
                 1,
-                "each task shows",
+                "每个任务显示",
                 vec![Span::raw(summary)],
                 (cx, width),
             ),
             Line::raw(""),
             Line::styled(
-                "One row per background agent, every 5 seconds. Enter on the row above edits it in Layout (t switches lines).",
+                "每个后台 agent 一行，每 5 秒刷新。在上面那行回车可到「布局」页编辑（t 切换行）。",
                 ui::muted(),
             ),
         ];
@@ -323,31 +323,31 @@ impl ClaudePage {
 
     fn render_updates(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Updates;
-        let block = self.block("Updates".into(), Some(pane), cx);
+        let block = self.block("更新".into(), Some(pane), cx);
         let width = block.inner(area).width as usize;
         let u = &cx.doc.config.update;
         let latest = match &cx.env.update.latest {
             Some(v) if update::is_newer(v, update::CURRENT) => {
-                Span::styled(format!("{v}  ↑ available"), Style::default().fg(ui::WARN))
+                Span::styled(format!("{v}  ↑ 可更新"), Style::default().fg(ui::WARN))
             }
-            Some(v) => Span::raw(format!("{v}  up to date")),
-            None => Span::styled("not checked yet", ui::muted()),
+            Some(v) => Span::raw(format!("{v}  已是最新")),
+            None => Span::styled("尚未检查", ui::muted()),
         };
         let text = vec![
-            self.row(pane, 0, "check", vec![on_off(u.check)], (cx, width)),
+            self.row(pane, 0, "检查", vec![on_off(u.check)], (cx, width)),
             self.row(
                 pane,
                 1,
-                "every",
+                "每隔",
                 vec![ui::choice(&format!("{}h", u.interval_hours))],
                 (cx, width),
             ),
-            self.row(pane, 2, "upgrade", vec![Span::raw(UPGRADE)], (cx, width)),
-            Self::info(pane, "current", Span::raw(update::CURRENT), width),
-            Self::info(pane, "latest", latest, width),
+            self.row(pane, 2, "升级", vec![Span::raw(UPGRADE)], (cx, width)),
+            Self::info(pane, "当前", Span::raw(update::CURRENT), width),
+            Self::info(pane, "最新", latest, width),
             Line::raw(""),
             Line::styled(
-                "Checked in the background; never slows the status line. Enter on upgrade copies the command.",
+                "在后台检查，不会拖慢状态栏。在「升级」行回车可复制命令。",
                 ui::muted(),
             ),
         ];
@@ -359,29 +359,29 @@ impl ClaudePage {
 
     fn render_mod(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Mod;
-        let block = self.block("Companion mod".into(), Some(pane), cx);
+        let block = self.block("配套 mod".into(), Some(pane), cx);
         let width = block.inner(area).width as usize;
         let at = (cx, width);
         let ok = |t: String| Span::styled(t, Style::default().fg(ui::OK));
         let warn = |t: String| Span::styled(t, Style::default().fg(ui::WARN));
         let status = match companion::status() {
             Status::NotInstalled => vec![
-                Span::styled("not installed", ui::muted()),
-                Span::styled("  enter installs", ui::muted()),
+                Span::styled("未安装", ui::muted()),
+                Span::styled("  回车安装", ui::muted()),
             ],
             Status::Outdated(i) => vec![
                 warn(format!(
-                    "{} installed, {} here",
+                    "已装 {}，这里是 {}",
                     i.version.as_deref().unwrap_or("?"),
                     companion::version()
                 )),
-                Span::styled("  enter updates", ui::muted()),
+                Span::styled("  回车更新", ui::muted()),
             ],
-            Status::Current(_) => vec![ok(format!("installed {} ✓", companion::version()))],
+            Status::Current(_) => vec![ok(format!("已安装 {} ✓", companion::version()))],
         };
         let needs = match cx.env.cc_version() {
             Some(v) if v >= MODS => ok(format!("Claude Code ≥ {MODS} ✓")),
-            Some(v) => warn(format!("Claude Code ≥ {MODS}, running {v}")),
+            Some(v) => warn(format!("需要 Claude Code ≥ {MODS}，当前 {v}")),
             None => Span::raw(format!("Claude Code ≥ {MODS}")),
         };
         // Whether the mod wrote anything for the last session seen.
@@ -394,33 +394,33 @@ impl ClaudePage {
         let now_ms = chrono::Utc::now().timestamp_millis();
         let bridge = match session.and_then(|id| crate::state::bridge::read(&id, now_ms)) {
             Some(b) => ok(format!(
-                "live, {} ago",
+                "实时，{} 前",
                 crate::metrics::fmt::duration_ms((now_ms - b.updated_at).max(0) as u64)
             )),
-            None => Span::styled("no data for the last session", ui::muted()),
+            None => Span::styled("上次会话没有数据", ui::muted()),
         };
         let installed = !matches!(companion::status(), Status::NotInstalled);
         let text = vec![
-            self.row(pane, 0, "status", status, at),
+            self.row(pane, 0, "状态", status, at),
             self.row(
                 pane,
                 1,
-                "remove",
+                "移除",
                 vec![Span::styled(
-                    if installed { "enter removes it" } else { "—" },
+                    if installed { "回车移除" } else { "—" },
                     ui::muted(),
                 )],
                 at,
             ),
-            Self::info(pane, "needs", needs, width),
-            Self::info(pane, "bridge", bridge, width),
+            Self::info(pane, "需要", needs, width),
+            Self::info(pane, "桥接", bridge, width),
             Self::info(
                 pane,
-                "adds",
-                Span::raw("context by kind, compact point,"),
+                "追加",
+                Span::raw("按类型统计的上下文、压缩点、"),
                 width,
             ),
-            Self::info(pane, "", Span::raw("tools, agents, turn timing"), width),
+            Self::info(pane, "", Span::raw("工具、agent、每轮耗时"), width),
         ];
         f.render_widget(Paragraph::new(text).block(block), area);
     }
@@ -432,7 +432,7 @@ impl ClaudePage {
             (1, KeyCode::Enter) if installed => {
                 Outcome::Open(Box::new(ModSteps { install: false }))
             }
-            (1, KeyCode::Enter) => Outcome::Toast("The companion mod isn't installed".into()),
+            (1, KeyCode::Enter) => Outcome::Toast("尚未安装配套 mod".into()),
             _ => Outcome::Ignored,
         }
     }
@@ -495,7 +495,7 @@ impl ClaudePage {
                     .filter(|c| cc_settings::is_ccline(c))
                     .unwrap_or_else(cc_settings::suggested_command);
                 self.edit(|d| d.set_subagent((!on).then_some(command.as_str())));
-                Outcome::Toast("Changed the draft; apply it from the statusLine panel (a)".into())
+                Outcome::Toast("已改动草稿；请在 statusLine 面板按 a 应用".into())
             }
             (1, KeyCode::Enter) => Outcome::Goto(PageId::Layout),
             _ => Outcome::Ignored,
@@ -575,10 +575,10 @@ impl Page for ClaudePage {
 
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            ("tab", "pane"),
-            ("←→", "change"),
-            ("enter", "set"),
-            ("a", "apply to settings.json"),
+            ("tab", "面板"),
+            ("←→", "修改"),
+            ("enter", "设置"),
+            ("a", "应用到 settings.json"),
         ]
     }
 
@@ -620,10 +620,7 @@ mod tests {
         );
         app.open_page(PageId::Claude);
         let s = screen(&mut app, 112, 33);
-        assert!(
-            s.contains("not ccline") && s.contains("Companion mod"),
-            "{s}"
-        );
+        assert!(s.contains("非 ccline") && s.contains("配套 mod"), "{s}");
 
         // Point the command at ccline, set a refresh interval.
         app.handle_key(key(KeyCode::Enter));
@@ -632,7 +629,7 @@ mod tests {
         app.handle_key(key(KeyCode::Right));
         app.handle_key(key(KeyCode::Right));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("review and apply") && s.contains("‹2s›"), "{s}");
+        assert!(s.contains("查看并应用") && s.contains("‹2s›"), "{s}");
         assert!(
             std::fs::read_to_string(&settings)
                 .unwrap()
@@ -649,14 +646,14 @@ mod tests {
         assert!(cc_settings::is_ccline(&line.command));
         assert_eq!(line.refresh_interval, Some(2));
         assert!(dir.join("settings.json.ccline-bak").exists());
-        assert!(screen(&mut app, 112, 33).contains("no changes"));
+        assert!(screen(&mut app, 112, 33).contains("无更改"));
 
         // The companion mod pane shows the commands before running any.
         app.handle_key(key(KeyCode::Tab));
         app.handle_key(key(KeyCode::Enter));
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("Install the companion mod") && s.contains("cometix@ccline"),
+            s.contains("安装配套 mod") && s.contains("cometix@ccline"),
             "{s}"
         );
         app.handle_key(key(KeyCode::Char('n')));
@@ -710,9 +707,9 @@ mod tests {
         // Quitting asks first; saving on the way out applies it, then quits.
         app.handle_key(key(KeyCode::Char('q')));
         assert!(!app.quit);
-        assert!(screen(&mut app, 112, 33).contains("settings.json not applied"));
+        assert!(screen(&mut app, 112, 33).contains("settings.json 的改动尚未应用"));
         app.handle_key(key(KeyCode::Char('s')));
-        assert!(screen(&mut app, 112, 33).contains("apply and quit"));
+        assert!(screen(&mut app, 112, 33).contains("应用并退出"));
         app.handle_key(key(KeyCode::Char('y')));
         assert!(app.quit);
         assert_eq!(refresh(), Some(2));

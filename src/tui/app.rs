@@ -101,7 +101,7 @@ impl App {
         let area = f.area();
         if area.width < MIN_SIZE.0 || area.height < MIN_SIZE.1 {
             let msg = format!(
-                "ccline needs a terminal of at least {}×{} (this one is {}×{}).",
+                "ccline 需要至少 {}×{} 的终端（当前为 {}×{}）。",
                 MIN_SIZE.0, MIN_SIZE.1, area.width, area.height
             );
             f.render_widget(Paragraph::new(msg), area);
@@ -191,7 +191,7 @@ impl App {
             ),
             _ => {
                 let own = if self.tabs_focused {
-                    vec![("←→", "switch page"), ("↓", "into the page")]
+                    vec![("←→", "切换页面"), ("↓", "进入页面")]
                 } else {
                     keys
                 };
@@ -313,7 +313,7 @@ impl App {
         if taken {
             self.tabs_focused = false;
         } else {
-            self.toast("Nothing here takes pasted text", false);
+            self.toast("这里没有可接收粘贴文本的字段", false);
         }
     }
 
@@ -371,7 +371,7 @@ impl App {
         let mut out = std::io::stdout();
         let _ = write!(out, "\x1b]52;c;{}\x07", base64(text.as_bytes()));
         let _ = out.flush();
-        self.toast(format!("Copied: {text}"), false);
+        self.toast(format!("已复制：{text}"), false);
     }
 
     /// The first-run setup, over whatever is showing.
@@ -403,17 +403,17 @@ impl App {
             Action::Scenario(i) => self.preview.scenario = i,
             Action::Replay => {
                 if !self.preview.toggle_replay() {
-                    self.toast("No session recorded yet to replay", false);
+                    self.toast("还没有可供重放的会话记录", false);
                 }
             }
             Action::Undo => {
                 if !self.doc.undo() {
-                    self.toast("Nothing to undo", false);
+                    self.toast("没有可撤销的操作", false);
                 }
             }
             Action::Redo => {
                 if !self.doc.redo() {
-                    self.toast("Nothing to redo", false);
+                    self.toast("没有可重做的操作", false);
                 }
             }
             Action::AskQuit => self.request_quit(),
@@ -428,7 +428,7 @@ impl App {
             Action::SavePreset => self.dialogs.push(Box::new(dialogs::PresetDialog::new())),
             Action::Reload => {
                 self.doc.reload();
-                self.toast("Reloaded from disk", false);
+                self.toast("已从磁盘重新加载", false);
             }
             // ccline's files, then any drafted change to Claude Code's
             // settings, which is written only once its diff is accepted.
@@ -436,9 +436,9 @@ impl App {
                 (dirty, Ok(())) => {
                     let diff = self.unapplied();
                     if dirty {
-                        self.toast("Saved", false);
+                        self.toast("已保存", false);
                     } else if diff.is_none() {
-                        self.toast("Nothing to save", false);
+                        self.toast("没有需要保存的内容", false);
                     }
                     match diff {
                         Some(mut diff) => {
@@ -452,7 +452,7 @@ impl App {
                     self.dialogs
                         .push(Box::new(dialogs::Conflict { paths, then_quit }));
                 }
-                (_, Err(SaveError::Io(e))) => self.toast(format!("Couldn't save: {e}"), true),
+                (_, Err(SaveError::Io(e))) => self.toast(format!("保存失败：{e}"), true),
             },
         }
     }
@@ -463,14 +463,9 @@ impl App {
 /// last hints after the globals, but never `? help`, which lists them all.
 fn footer_hints(own: Vec<(&str, &str)>, in_page: bool, width: usize) -> Line<'static> {
     let mut own = own;
-    let mut global = vec![
-        ("^S", "save"),
-        ("^P", "commands"),
-        ("?", "help"),
-        ("q", "quit"),
-    ];
+    let mut global = vec![("^S", "保存"), ("^P", "命令"), ("?", "帮助"), ("q", "退出")];
     if in_page {
-        global.insert(0, ("↑", "tabs"));
+        global.insert(0, ("↑", "标签行"));
     }
     loop {
         let all: Vec<(&str, &str)> = own.iter().chain(&global).copied().collect();
@@ -515,6 +510,7 @@ fn base64(bytes: &[u8]) -> String {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::render::width::display_width;
     use crate::tui::doc::tests::temp_paths;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
@@ -549,15 +545,15 @@ pub(crate) mod tests {
                 .map(|s| s.content.to_string())
                 .collect::<String>()
         };
-        assert!(text(120).contains("q quit") && text(120).contains("^P commands"));
+        assert!(text(120).contains("q 退出") && text(120).contains("^P 命令"));
         // ^P goes after quit, before save.
         let less = text(70);
-        assert!(!less.contains("^P") && less.contains("^S save"), "{less}");
+        assert!(!less.contains("^P") && less.contains("^S 保存"), "{less}");
         let mid = text(60);
-        assert!(!mid.contains("q quit") && mid.contains("? help") && mid.contains("n new line"));
+        assert!(!mid.contains("q 退出") && mid.contains("? 帮助") && mid.contains("n new line"));
         let tight = text(30);
         assert!(
-            tight.contains("? help") && !tight.contains("n new line"),
+            tight.contains("? 帮助") && !tight.contains("n new line"),
             "{tight}"
         );
     }
@@ -580,15 +576,22 @@ pub(crate) mod tests {
         t.draw(|f| app.render(f)).unwrap();
         let buf = t.backend().buffer();
         (0..h)
-            .map(|y| {
-                (0..w)
-                    .map(|x| buf[(x, y)].symbol())
-                    .collect::<String>()
-                    .trim_end()
-                    .to_string()
-            })
+            .map(|y| row_text(buf, y, w))
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Row `y` as a terminal shows it: a wide glyph's remaining cells are
+    /// blank fillers, not columns of their own.
+    fn row_text(buf: &ratatui::buffer::Buffer, y: u16, w: u16) -> String {
+        let mut out = String::new();
+        let mut x: u16 = 0;
+        while x < w {
+            let sym = buf[(x, y)].symbol();
+            out.push_str(sym);
+            x += 1 + display_width(sym).saturating_sub(1) as u16;
+        }
+        out.trim_end().to_string()
     }
 
     /// How the first cell of `title` in the tab row is drawn.
@@ -596,8 +599,8 @@ pub(crate) mod tests {
         let mut t = Terminal::new(TestBackend::new(100, 30)).unwrap();
         t.draw(|f| app.render(f)).unwrap();
         let buf = t.backend().buffer();
-        let row: String = (0..100).map(|x| buf[(x, 1)].symbol().to_string()).collect();
-        let x = row[..row.find(title).unwrap()].chars().count() as u16;
+        let row = row_text(buf, 1, 100);
+        let x = display_width(&row[..row.find(title).unwrap()]) as u16;
         buf[(x, 1)].style()
     }
 
@@ -637,18 +640,21 @@ pub(crate) mod tests {
             line.spans.iter().map(|s| s.content.as_ref()).collect()
         };
         let span = |text: &str| {
-            let start = text.find(" Home ").unwrap();
+            let start = text.find(" 主页 ").unwrap();
             let end = text.find(" Claude Code ").unwrap() + " Claude Code ".len();
-            (start, end)
+            (display_width(&text[..start]), display_width(&text[..end]))
         };
         // Room to spare: the tabs sit in the middle of the row.
         let wide = row(123);
         let (start, end) = span(&wide);
         assert!(start.abs_diff(123 - end) <= 1, "{wide:?}");
-        assert!(wide.starts_with(" CCometixLine") && !wide.contains("help"));
+        assert!(wide.starts_with(" CCometixLine") && !wide.contains("退出"));
         // The smallest frame: they keep clear of the name.
         let narrow = row(MIN_SIZE.0 - 2);
-        assert!(span(&narrow).0 >= " CCometixLine".len() + 2, "{narrow:?}");
+        assert!(
+            span(&narrow).0 >= display_width(" CCometixLine") + 2,
+            "{narrow:?}"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -659,28 +665,28 @@ pub(crate) mod tests {
         let home = screen(&mut app, 100, 30);
         assert!(
             home.contains(" CCometixLine ")
-                && home.contains(" Home ")
-                && !home.contains("[1 Home]"),
+                && home.contains(" 主页 ")
+                && !home.contains("[1 主页]"),
             "{home}"
         );
         assert!(
-            home.contains("Health")
-                && home.contains("Start")
-                && home.contains("Your status line now")
+            home.contains("健康检查")
+                && home.contains("开始")
+                && home.contains("你的状态栏当前样式")
         );
         // The tab row starts with the keys; left and right show pages.
-        assert!(app.tabs_focused && tab_on(&mut app, "Home"));
+        assert!(app.tabs_focused && tab_on(&mut app, "主页"));
         app.handle_key(key(KeyCode::Left));
         assert_eq!(app.page, PageId::Claude);
         for _ in 0..5 {
             app.handle_key(key(KeyCode::Right));
         }
         assert_eq!(app.page, PageId::Models);
-        assert!(tab_on(&mut app, "Models") && !tab_on(&mut app, "Home"));
+        assert!(tab_on(&mut app, "模型") && !tab_on(&mut app, "主页"));
         // Down goes into the page; there left and right are the page's.
         app.handle_key(key(KeyCode::Down));
-        assert!(!app.tabs_focused && tab_current(&mut app, "Models"));
-        assert!(!tab_current(&mut app, "Home"));
+        assert!(!app.tabs_focused && tab_current(&mut app, "模型"));
+        assert!(!tab_current(&mut app, "主页"));
         app.handle_key(key(KeyCode::Right));
         assert_eq!(app.page, PageId::Models);
         // Up past the top of the page reaches the tab row again; so does Esc.
@@ -701,7 +707,7 @@ pub(crate) mod tests {
         app.handle_key(key(KeyCode::Enter));
         assert_eq!(app.page, PageId::Presets);
         assert!(!app.tabs_focused);
-        assert!(screen(&mut app, 60, 20).contains("at least 80×24"));
+        assert!(screen(&mut app, 60, 20).contains("至少 80×24"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -716,7 +722,7 @@ pub(crate) mod tests {
         app.doc.edit(|c, _| c.palette = "nord".into());
         app.handle_key(key(KeyCode::Char('q')));
         assert!(!app.quit && !app.dialogs.is_empty());
-        assert!(screen(&mut app, 100, 30).contains("1 change since the last save"));
+        assert!(screen(&mut app, 100, 30).contains("上次保存后有 1 处改动"));
         app.handle_key(key(KeyCode::Esc));
         assert!(app.dialogs.is_empty());
         app.handle_key(ctrl('z'));
@@ -736,7 +742,7 @@ pub(crate) mod tests {
         app.doc.edit(|c, _| c.palette = "nord".into());
         std::fs::write(&paths.config, "version = 2\n").unwrap();
         app.handle_key(ctrl('s'));
-        assert!(screen(&mut app, 100, 30).contains("Changed on disk"));
+        assert!(screen(&mut app, 100, 30).contains("磁盘上已改动"));
         app.handle_key(key(KeyCode::Char('o')));
         assert!(!app.doc.dirty() && app.dialogs.is_empty());
         std::fs::remove_dir_all(&dir).unwrap();

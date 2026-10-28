@@ -52,8 +52,8 @@ impl PresetDialog {
             editing,
             form: Form::new(
                 vec![
-                    Field::text("Name", name, "e.g. work"),
-                    Field::text("Summary", summary, "optional, shown in the gallery"),
+                    Field::text("名称", name, "例如 work"),
+                    Field::text("简介", summary, "可选，显示在画廊中"),
                 ],
                 0,
             ),
@@ -76,7 +76,7 @@ impl PresetDialog {
             doc.presets
                 .get(&name)
                 .filter(|e| e.is_mine())
-                .map(|_| format!("You already have {name}."))
+                .map(|_| format!("你已经有一个 {name} 了。"))
         })
     }
 }
@@ -95,29 +95,29 @@ impl Dialog for PresetDialog {
         text.push(match (&self.error, self.problem(cx.doc)) {
             (Some(e), _) => Line::styled(format!(" {e}"), bad),
             (None, Some(p)) if typed => Line::styled(format!(" {p}"), bad),
-            (None, Some(_)) => Line::styled(" Name it to save it.", ui::muted()),
+            (None, Some(_)) => Line::styled(" 命名后即可保存。", ui::muted()),
             (None, None) => {
                 let path = cx.doc.presets.dir().join(format!("{}.toml", self.name()));
-                let room = WIDTH as usize - 2 - " Saves to ".len();
-                Line::styled(format!(" Saves to {}", path_in(&path, room)), ui::muted())
+                let room = WIDTH as usize - 10;
+                Line::styled(format!(" 保存到 {}", path_in(&path, room)), ui::muted())
             }
         });
         if self.editing.is_none() {
             text.push(Line::styled(
-                " The layout and look go in; width, git and update settings stay out.",
+                " 只保存布局与外观；宽度、git 与更新设置不会写入。",
                 ui::muted(),
             ));
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("enter", "save"),
-            ("esc", "cancel"),
-            ("tab", "next field"),
+            ("enter", "保存"),
+            ("esc", "取消"),
+            ("tab", "下一字段"),
         ]));
         let rect = ui::popup(f, area, WIDTH, text.len() as u16 + 2);
         let title = match &self.editing {
-            Some(name) => format!("Edit preset {name}"),
-            None => "Save as preset".into(),
+            Some(name) => format!("编辑预设 {name}"),
+            None => "另存为预设".into(),
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
@@ -132,12 +132,12 @@ impl Dialog for PresetDialog {
                     None => doc
                         .presets
                         .create(&name, &summary, &doc.config)
-                        .map(|()| format!("Saved preset {name}")),
+                        .map(|()| format!("已保存预设 {name}")),
                     Some(old) => doc.presets.rename(old, &name, &summary).map(|()| {
                         if *old == name {
-                            format!("Updated {name}")
+                            format!("已更新 {name}")
                         } else {
-                            format!("Renamed {old} to {name}")
+                            format!("已把 {old} 重命名为 {name}")
                         }
                     }),
                 };
@@ -194,35 +194,32 @@ impl Dialog for PresetPrompt {
         let mut text = if self.delete {
             let path = cx.doc.presets.dir().join(format!("{name}.toml"));
             let mut t = vec![
-                Line::raw(format!(" Delete {name}? This removes")),
+                Line::raw(format!(" 删除 {name}？这将移除")),
                 Line::raw(format!("   {}", path_in(&path, WIDTH as usize - 3))),
             ];
             if cx.doc.config.preset.as_deref() == Some(name.as_str()) {
                 t.push(Line::styled(
-                    " Your status line keeps its look; it stops being marked as this preset.",
+                    " 你的状态栏外观不变；只是不再标记为此预设。",
                     ui::muted(),
                 ));
             }
             t
         } else {
             vec![
-                Line::raw(format!(" Replace {name} with your current setup?")),
-                Line::styled(
-                    " It takes the layout and look the preview shows now.",
-                    ui::muted(),
-                ),
+                Line::raw(format!(" 用当前设置替换 {name}？")),
+                Line::styled(" 它会采用预览当前显示的布局与外观。", ui::muted()),
             ]
         };
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("Y", if self.delete { "delete" } else { "replace" }),
-            ("N", "cancel"),
+            ("Y", if self.delete { "删除" } else { "替换" }),
+            ("N", "取消"),
         ]));
         let rect = ui::popup(f, area, WIDTH + 4, text.len() as u16 + 2);
         let title = if self.delete {
-            "Delete preset"
+            "删除预设"
         } else {
-            "Replace preset"
+            "替换预设"
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(title)), rect);
     }
@@ -232,13 +229,11 @@ impl Dialog for PresetPrompt {
             KeyCode::Char('y' | 'Y') => {
                 let name = self.name.clone();
                 let done = if self.delete {
-                    doc.presets
-                        .delete(&name)
-                        .map(|()| format!("Deleted {name}"))
+                    doc.presets.delete(&name).map(|()| format!("已删除 {name}"))
                 } else {
                     doc.presets
                         .replace(&name, &doc.config)
-                        .map(|()| format!("Replaced {name} with your setup"))
+                        .map(|()| format!("已用你的设置替换 {name}"))
                 };
                 Reply::Then(match done {
                     Ok(message) => {

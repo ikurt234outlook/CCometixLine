@@ -117,7 +117,7 @@ Apply one in the configurator: all of it, only its layout, or only its look. Sav
 
 ## The configurator
 
-Run `ccline` (or `ccline -c`). Six pages, switched with `1`–`6`; every change shows at once in the preview bar, drawn by the same code as the real status line.
+Run `ccline` (or `ccline -c`). Six pages, switched with `←→` on the tab row (`↓` into the page, `↑` / `esc` back to it); every change shows at once in the preview bar, drawn by the same code as the real status line.
 
 | Page | What it does |
 |---|---|
@@ -134,7 +134,7 @@ The icon picker covers all 10,617 icons of Nerd Fonts 3.5.1, searchable by name,
 
 ![Icon picker](assets/tui-icons.webp)
 
-Keys everywhere: `^S` save, `^Z` / `^Y` undo and redo, `^P` command palette, `[` `]` sample session, `-` `+` preview width, `{` color depth, `}` glyphs, `?` help, `q` quit.
+Keys everywhere: `←→` switch page, `↑` / `esc` back to the tab row, `↓` into the page, `^S` save, `^Z` / `^Y` undo and redo, `^P` command palette, `[` `]` sample session, `-` `+` preview width, `{` color depth, `}` glyphs, `?` help, `q` quit.
 
 ## Metrics
 

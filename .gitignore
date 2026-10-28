@@ -11,3 +11,6 @@ PRD.md
 
 # Design notes stay local
 /docs/
+
+# Serena's project cache
+/.serena/

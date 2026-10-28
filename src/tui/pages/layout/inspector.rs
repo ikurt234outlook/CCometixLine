@@ -125,19 +125,19 @@ pub fn fields(cfg: &ItemConfig, meta: &MetricMeta, one_line: bool) -> Vec<Field>
 pub fn label(field: Field, meta: &MetricMeta) -> String {
     match field {
         Field::Opt(i) => meta.options[i].key.to_string(),
-        Field::Widget => "Widget".into(),
-        Field::Bar => "Bar".into(),
-        Field::Cells => "Cells".into(),
-        Field::Template(Level::Full) => "Full".into(),
-        Field::Template(Level::Compact) => "Compact".into(),
-        Field::Template(Level::Minimal) => "Minimal".into(),
-        Field::Icon => "Icon".into(),
-        Field::IconColor => "Icon color".into(),
-        Field::Color => "Color".into(),
-        Field::Text => "Text".into(),
-        Field::Levels => "Levels".into(),
-        Field::Coloring => "Coloring".into(),
-        Field::Priority => "Priority".into(),
+        Field::Widget => "控件".into(),
+        Field::Bar => "进度条".into(),
+        Field::Cells => "格数".into(),
+        Field::Template(Level::Full) => "完整".into(),
+        Field::Template(Level::Compact) => "紧凑".into(),
+        Field::Template(Level::Minimal) => "极简".into(),
+        Field::Icon => "图标".into(),
+        Field::IconColor => "图标色".into(),
+        Field::Color => "颜色".into(),
+        Field::Text => "文字".into(),
+        Field::Levels => "分级".into(),
+        Field::Coloring => "着色".into(),
+        Field::Priority => "优先级".into(),
     }
 }
 
@@ -364,7 +364,7 @@ pub fn set_text(
                 _ if text.is_empty() => None,
                 OptKind::Number => Some(toml::Value::Integer(
                     text.parse::<u32>()
-                        .map_err(|_| format!("{} takes a whole number", spec.key))?
+                        .map_err(|_| format!("{} 需要一个整数", spec.key))?
                         .into(),
                 )),
                 _ => Some(toml::Value::String(text.to_string())),
@@ -415,7 +415,7 @@ pub fn levels_text(cfg: &ItemConfig, meta: &MetricMeta) -> String {
             .collect(),
     };
     if all.is_empty() {
-        "none".into()
+        "无".into()
     } else {
         all.join(" · ")
     }
@@ -436,11 +436,11 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
         Field::Opt(i) => {
             let spec = &meta.options[i];
             match spec.kind {
-                OptKind::Flag => vec![ui::choice(if flag(cfg, spec) { "on" } else { "off" })],
+                OptKind::Flag => vec![ui::choice(if flag(cfg, spec) { "开" } else { "关" })],
                 OptKind::Choice(_) => vec![ui::choice(&opt_text(cfg, spec))],
                 OptKind::Text | OptKind::Number => match opt(cfg, spec) {
                     Some(_) => plain(opt_text(cfg, spec)),
-                    None if spec.default.is_empty() => muted("none"),
+                    None if spec.default.is_empty() => muted("无"),
                     None => muted(spec.default),
                 },
             }
@@ -449,23 +449,23 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
         Field::Bar => vec![ui::choice(&lower(cfg.bar.unwrap_or_default()))],
         Field::Cells => vec![ui::choice(&cfg.cells.unwrap_or(CELLS.1).to_string())],
         Field::Template(l) => match template(cfg, l) {
-            Some(t) if t.is_empty() => muted("hidden"),
+            Some(t) if t.is_empty() => muted("隐藏"),
             Some(t) => plain(t.clone()),
             None => muted(meta.templates[l.index()]),
         },
         Field::Icon => match &cfg.icon {
-            Some(i) if i.is_empty() => muted("none"),
+            Some(i) if i.is_empty() => muted("无"),
             Some(i) => plain(i.clone()),
             None => {
                 let glyph = glyphs::icon(meta.icon, look.tier);
                 let mut v = plain(format!("{glyph} "));
-                v.extend(muted("default"));
+                v.extend(muted("默认"));
                 v
             }
         },
         Field::IconColor | Field::Color | Field::Text => match color_of(field, cfg) {
-            None if field == Field::Color => muted("category"),
-            None => muted("auto"),
+            None if field == Field::Color => muted("随分类"),
+            None => muted("自动"),
             Some(name) => {
                 let color = match Token::parse(name) {
                     Some(t) => look.palette.color(t),
@@ -478,7 +478,7 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
             let text = levels_text(cfg, meta);
             let mut v = plain(text);
             if cfg.coloring == Some(Coloring::Gradient) {
-                v.extend(muted(" gradient"));
+                v.extend(muted(" 渐变"));
             }
             v
         }
@@ -490,9 +490,9 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
                 Span::styled("○".repeat(5 - p), ui::muted()),
                 Span::styled(
                     if p == 1 {
-                        "  first to go".to_string()
+                        "  最先让位".to_string()
                     } else if p == 5 {
-                        "  kept longest".to_string()
+                        "  最后让位".to_string()
                     } else {
                         String::new()
                     },
@@ -517,7 +517,7 @@ pub fn row(
     let style = if on { ui::accent() } else { Style::default() };
     let mut spans = vec![
         marker,
-        Span::styled(format!("{:<LABEL$}", label(field, meta)), style),
+        Span::styled(ui::pad(&label(field, meta), LABEL), style),
     ];
     match editing {
         Some(input) if on => {
@@ -670,7 +670,7 @@ mod tests {
         assert_eq!(g.icon.as_deref(), Some(""));
         reset(Field::Icon, &mut g, git);
         assert_eq!(g.icon, None);
-        assert_eq!(levels_text(&g, git), "none");
+        assert_eq!(levels_text(&g, git), "无");
         assert_eq!(
             levels_text(&bare("context"), meta("context")),
             "50 warn · 80 crit"

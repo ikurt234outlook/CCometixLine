@@ -70,10 +70,10 @@ fn text_of(line: &Option<Line>) -> String {
 
 /// `Preview  <the item>` for the bottom of a dialog.
 fn sample_row(sample: Option<Line<'static>>) -> Line<'static> {
-    let mut spans = vec![Span::styled(" Preview   ", ui::muted())];
+    let mut spans = vec![Span::styled(" 预览   ", ui::muted())];
     match sample {
         Some(l) => spans.extend(l.spans),
-        None => spans.push(Span::styled("nothing in this scenario", ui::muted())),
+        None => spans.push(Span::styled("此场景中没有内容", ui::muted())),
     }
     Line::from(spans)
 }
@@ -140,7 +140,7 @@ impl Dialog for WidgetDialog {
                 Span::styled(format!("{label:<15}"), style),
             ];
             if graphless {
-                spans.push(Span::styled("no graph for this metric", ui::muted()));
+                spans.push(Span::styled("该指标没有图形", ui::muted()));
             } else if let Some(l) = sample {
                 spans.extend(l.spans);
             }
@@ -148,12 +148,12 @@ impl Dialog for WidgetDialog {
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("↑↓", "choose"),
-            ("enter", "apply"),
-            ("esc", "cancel"),
+            ("↑↓", "选择"),
+            ("enter", "应用"),
+            ("esc", "取消"),
         ]));
         f.render_widget(
-            Paragraph::new(text).block(ui::panel(&self.item.title("Widget"))),
+            Paragraph::new(text).block(ui::panel(&self.item.title("控件"))),
             rect,
         );
     }
@@ -172,7 +172,7 @@ impl Dialog for WidgetDialog {
                         c.bar = (b != BarGlyphs::default()).then_some(b);
                     }
                 });
-                return Reply::Then(Action::Toast(format!("Widget: {label}")));
+                return Reply::Then(Action::Toast(format!("控件：{label}")));
             }
             _ => {}
         }
@@ -300,9 +300,9 @@ impl IconDialog {
         let mut out = vec![
             (
                 glyphs::icon(self.item.meta.icon, self.tier).to_string(),
-                "default".to_string(),
+                "默认".to_string(),
             ),
-            (String::new(), "none".to_string()),
+            (String::new(), "无".to_string()),
         ];
         out.extend(
             IconKey::ALL
@@ -355,7 +355,7 @@ impl IconDialog {
             1
         };
         let mut spans = vec![Span::raw(" ")];
-        for (i, label) in ["Nerd", "Unicode", "All Nerd Fonts"]
+        for (i, label) in ["Nerd", "Unicode", "全部 Nerd 字体"]
             .into_iter()
             .enumerate()
         {
@@ -380,17 +380,18 @@ impl IconDialog {
         let all = nerd::all();
         let mut head = self.tabs();
         head.push(Span::styled(
-            format!("  {} of {}", thousands(b.found.len()), thousands(all.len())),
+            format!(
+                "  匹配 {} / 共 {}",
+                thousands(b.found.len()),
+                thousands(all.len())
+            ),
             ui::muted(),
         ));
         let prefixes: Vec<String> = nerd::classes()[..4]
             .iter()
             .map(|c| format!("{c}-"))
             .collect();
-        let placeholder = format!(
-            "a name, {} …, a codepoint, or paste an icon",
-            prefixes.join(" ")
-        );
+        let placeholder = format!("名字、{} …、码位，或直接粘贴图标", prefixes.join(" "));
         let mut search = vec![Span::styled(" / ", ui::accent())];
         search.extend(
             b.query
@@ -436,39 +437,39 @@ impl IconDialog {
                 ];
                 if g.names.len() > 1 {
                     spans.push(Span::styled(
-                        format!("  also {}", g.names[1..].join(" ")),
+                        format!("  也叫 {}", g.names[1..].join(" ")),
                         ui::muted(),
                     ));
                 }
                 if cx.doc.config.glyphs != GlyphTier::Nerd {
                     spans.push(Span::styled(
-                        "  needs a Nerd Font",
+                        "  需要 Nerd 字体",
                         Style::default().fg(ui::WARN),
                     ));
                 }
                 Line::from(ui::clip(spans, (rect.width as usize).saturating_sub(2)))
             }
-            None => Line::styled(" No icon matches", ui::muted()),
+            None => Line::styled(" 没有匹配的图标", ui::muted()),
         });
         let mut item = self.item.current(cx.doc);
         item.icon = self.candidate(cx.doc);
         text.push(sample_row(self.item.sample(cx, &item)));
         text.push(Line::raw(""));
         let esc = if b.query.text().is_empty() {
-            "cancel"
+            "取消"
         } else {
-            "clear"
+            "清空"
         };
         text.push(ui::hints(&[
-            ("type", "search"),
-            ("arrows", "move"),
-            ("enter", "pick"),
-            ("tab", "glyphs"),
+            ("type", "搜索"),
+            ("arrows", "移动"),
+            ("enter", "选取"),
+            ("tab", "字形"),
             ("esc", esc),
         ]));
         let title = format!(
             "{} · Nerd Fonts {}",
-            self.item.title("Icon"),
+            self.item.title("图标"),
             nerd::version()
         );
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
@@ -498,7 +499,7 @@ impl IconDialog {
                 if let Some(g) = b.focused() {
                     let icon = self.pick(g.glyph.to_string(), doc.config.glyphs);
                     self.item.apply(doc, |c| c.icon = icon);
-                    return Reply::Then(Action::Toast(format!("Icon: {}", g.names[0])));
+                    return Reply::Then(Action::Toast(format!("图标：{}", g.names[0])));
                 }
             }
             _ => {
@@ -567,14 +568,14 @@ impl Dialog for IconDialog {
         text.push(Line::raw(""));
         let custom = match &self.custom {
             Some(input) => {
-                let mut spans = vec![Span::styled(" Custom    ", ui::accent())];
-                spans.extend(input.line(20, true, "type any character").spans);
+                let mut spans = vec![Span::styled(" 自定义   ", ui::accent())];
+                spans.extend(input.line(20, true, "输入任意字符").spans);
                 Line::from(spans)
             }
             None => Line::from(vec![
-                Span::styled(" Custom    ", ui::muted()),
+                Span::styled(" 自定义   ", ui::muted()),
                 Span::styled("c", ui::accent()),
-                Span::styled(" type your own", ui::muted()),
+                Span::styled(" 自己输入", ui::muted()),
             ]),
         };
         text.push(custom);
@@ -583,13 +584,13 @@ impl Dialog for IconDialog {
         text.push(sample_row(self.item.sample(cx, &item)));
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("arrows", "move"),
-            ("tab", "glyphs"),
-            ("enter", "pick"),
-            ("esc", "cancel"),
+            ("arrows", "移动"),
+            ("tab", "字形"),
+            ("enter", "选取"),
+            ("esc", "取消"),
         ]));
         f.render_widget(
-            Paragraph::new(text).block(ui::panel(&self.item.title("Icon"))),
+            Paragraph::new(text).block(ui::panel(&self.item.title("图标"))),
             rect,
         );
     }
@@ -601,7 +602,7 @@ impl Dialog for IconDialog {
                 KeyCode::Enter => {
                     let icon = Some(input.text().trim().to_string());
                     self.item.apply(doc, |c| c.icon = icon);
-                    return Reply::Then(Action::Toast("Icon set".into()));
+                    return Reply::Then(Action::Toast("已设置图标".into()));
                 }
                 _ => {
                     input.handle(key);
@@ -631,7 +632,7 @@ impl Dialog for IconDialog {
             KeyCode::Enter => {
                 let icon = self.icon(self.at, &self.entries(), doc.config.glyphs);
                 self.item.apply(doc, |c| c.icon = icon);
-                return Reply::Then(Action::Toast("Icon set".into()));
+                return Reply::Then(Action::Toast("已设置图标".into()));
             }
             _ => {}
         }
@@ -792,7 +793,7 @@ impl Dialog for LevelsDialog {
             let mut spans = vec![
                 Span::styled(if on { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
-                    format!("{label:<11}"),
+                    ui::pad(&label, 11),
                     if on { ui::accent() } else { Style::default() },
                 ),
             ];
@@ -803,7 +804,7 @@ impl Dialog for LevelsDialog {
         let mut text = vec![
             row(
                 0,
-                "Coloring".into(),
+                "着色".into(),
                 vec![
                     ui::choice(coloring),
                     Span::styled("   steps · gradient", ui::muted()),
@@ -816,15 +817,15 @@ impl Dialog for LevelsDialog {
         for (i, (at, sev)) in self.steps.iter().enumerate() {
             text.push(row(
                 i + 1,
-                format!("Step {}", i + 1),
+                format!("第 {} 档", i + 1),
                 vec![
-                    Span::raw(format!("from {at:>3}%   ")),
+                    Span::raw(format!("从 {at:>3}% 起   ")),
                     ui::choice(sev_name(*sev)),
                 ],
             ));
         }
         let add = self.steps.len() + 1;
-        text.push(row(add, "+ add step".into(), Vec::new()));
+        text.push(row(add, "+ 添加档位".into(), Vec::new()));
         text.push(Line::raw(""));
         let mut item = self.item.current(cx.doc);
         (item.levels, item.coloring) = self.settings();
@@ -832,14 +833,14 @@ impl Dialog for LevelsDialog {
         text.push(Line::raw(""));
         text.push(ui::hints(&[
             ("←→", "±5"),
-            ("space", "color"),
-            ("del", "remove"),
-            ("r", "reset"),
-            ("enter", "apply"),
-            ("esc", "cancel"),
+            ("space", "颜色"),
+            ("del", "删除"),
+            ("r", "重置"),
+            ("enter", "应用"),
+            ("esc", "取消"),
         ]));
         f.render_widget(
-            Paragraph::new(text).block(ui::panel(&self.item.title("Levels"))),
+            Paragraph::new(text).block(ui::panel(&self.item.title("分级"))),
             rect,
         );
     }
@@ -890,7 +891,7 @@ impl Dialog for LevelsDialog {
                     c.coloring = coloring;
                 });
                 return Reply::Then(Action::Toast(format!(
-                    "Levels: {}",
+                    "分级：{}",
                     super::inspector::levels_text(&self.item.current(doc), self.item.meta)
                 )));
             }

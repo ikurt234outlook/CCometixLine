@@ -52,7 +52,7 @@ impl Dialog for SettingsDiff {
         let rect = ui::popup(f, area, WIDTH, shown as u16 + more + 7);
         let room = WIDTH as usize - 2;
         let mut text = vec![
-            Line::raw(" ccline will write this to your Claude Code settings:"),
+            Line::raw(" ccline 将把以下内容写入你的 Claude Code 设置："),
             Line::raw(""),
         ];
         for (mark, line) in diff.iter().take(shown) {
@@ -68,13 +68,13 @@ impl Dialog for SettingsDiff {
         }
         if diff.len() > shown {
             text.push(Line::styled(
-                format!("    … {} more lines", diff.len() - shown),
+                format!("    … 另有 {} 行", diff.len() - shown),
                 ui::muted(),
             ));
         }
         text.push(Line::raw(""));
         text.push(Line::from(vec![
-            Span::styled(" Backup  ", ui::muted()),
+            Span::styled(" 备份  ", ui::muted()),
             Span::raw(format!(
                 "{}.ccline-bak",
                 self.base
@@ -85,12 +85,12 @@ impl Dialog for SettingsDiff {
             )),
         ]));
         let apply = if self.then_quit {
-            "apply and quit"
+            "应用并退出"
         } else {
-            "apply"
+            "应用"
         };
-        text.push(ui::hints(&[("Y", apply), ("N", "cancel")]));
-        let title = format!("Change {}", shown_path(&self.base.path));
+        text.push(ui::hints(&[("Y", apply), ("N", "取消")]));
+        let title = format!("更改 {}", shown_path(&self.base.path));
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
 
@@ -99,10 +99,10 @@ impl Dialog for SettingsDiff {
             KeyCode::Char('y' | 'Y') => match self.draft.save(&self.base) {
                 Ok(_) if self.then_quit => Reply::Then(Action::Quit),
                 Ok(backup) => Reply::Then(Action::Toast(match backup {
-                    Some(b) => format!("Updated settings.json · old file in {}", shown_path(&b)),
-                    None => "Created settings.json".into(),
+                    Some(b) => format!("已更新 settings.json · 旧文件在 {}", shown_path(&b)),
+                    None => "已创建 settings.json".into(),
                 })),
-                Err(e) => Reply::Then(Action::Error(format!("Couldn't write settings.json: {e}"))),
+                Err(e) => Reply::Then(Action::Error(format!("无法写入 settings.json：{e}"))),
             },
             KeyCode::Char('n' | 'N') | KeyCode::Esc => Reply::Close,
             _ => Reply::Stay,

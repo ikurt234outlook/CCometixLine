@@ -357,9 +357,7 @@ impl Preview {
     /// `showing` names what the bar shows when it isn't the edited config.
     /// The sample in view, or "your session" for the replay.
     pub fn scenario_name(&self) -> &'static str {
-        SCENARIOS
-            .get(self.scenario)
-            .map_or("your session", |s| s.name)
+        SCENARIOS.get(self.scenario).map_or("你的会话", |s| s.name)
     }
 
     pub fn title(
@@ -383,15 +381,15 @@ impl Preview {
         };
         let scenario = self.scenario_name().to_string();
         let values = [
-            ("scenario", scenario),
-            ("width", width),
-            ("depth", depth),
-            ("glyphs", tier),
+            ("场景", scenario),
+            ("宽度", width),
+            ("色深", depth),
+            ("字形", tier),
         ];
         let heading = match (showing, target) {
-            (Some(name), _) => format!(" Preview · {name} "),
-            (None, Target::Status) => " Preview ".to_string(),
-            (None, Target::Subagent) => " Preview · subagent ".to_string(),
+            (Some(name), _) => format!(" 预览 · {name} "),
+            (None, Target::Status) => " 预览 ".to_string(),
+            (None, Target::Subagent) => " 预览 · 子代理 ".to_string(),
         };
         let build = |labels: bool| {
             let mut spans = vec![Span::styled(heading.clone(), ui::title())];
@@ -499,7 +497,7 @@ mod tests {
             .iter()
             .map(|s| s.content.as_ref())
             .collect();
-        assert!(title.contains("your session"), "{title}");
+        assert!(title.contains("你的会话"), "{title}");
         assert!(p.toggle_replay() && p.scenario == 0);
         std::fs::remove_dir_all(&dir).unwrap();
     }

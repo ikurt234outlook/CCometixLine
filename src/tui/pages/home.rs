@@ -24,12 +24,12 @@ enum Go {
 }
 
 const START: [(&str, Go); 6] = [
-    ("Open composer", Go::Page(PageId::Layout)),
-    ("Browse presets", Go::Page(PageId::Presets)),
-    ("Model registry", Go::Page(PageId::Models)),
-    ("Claude Code integration", Go::Page(PageId::Claude)),
-    ("First-run setup", Go::Setup),
-    ("Quit", Go::Quit),
+    ("打开布局编辑器", Go::Page(PageId::Layout)),
+    ("浏览预设", Go::Page(PageId::Presets)),
+    ("模型注册表", Go::Page(PageId::Models)),
+    ("Claude Code 集成", Go::Page(PageId::Claude)),
+    ("首次启动设置", Go::Setup),
+    ("退出", Go::Quit),
 ];
 const UPGRADE: &str = "npm update -g @cometix/ccline";
 /// Recommended `refreshInterval`, in seconds.
@@ -73,48 +73,39 @@ fn checks(cx: &Cx) -> Vec<Check> {
     let mut out = Vec::new();
     out.push(match cx.env.cc_version() {
         Some(v) if v >= MIN_SUPPORTED => check(Mark::Ok, format!("Claude Code {v}")),
-        Some(v) => check(
-            Mark::Warn,
-            format!("Claude Code {v} is older than {MIN_SUPPORTED}"),
-        ),
-        None => check(Mark::Info, "Claude Code version not seen yet"),
+        Some(v) => check(Mark::Warn, format!("Claude Code {v} 低于 {MIN_SUPPORTED}")),
+        None => check(Mark::Info, "还没见到 Claude Code 版本"),
     });
     match Settings::load(&cx.env.settings) {
         Err(e) => out.push(check(Mark::Warn, e)),
         Ok(s) => match s.status_line() {
             Some(l) if cc_settings::is_ccline(&l.command) => {
-                out.push(check(Mark::Ok, "statusLine runs ccline"));
+                out.push(check(Mark::Ok, "statusLine 已在运行 ccline"));
                 if l.refresh_interval.is_none() {
-                    out.push(check(Mark::Info, "refreshInterval not set").fix("i", "set 2s"));
+                    out.push(check(Mark::Info, "未设置 refreshInterval").fix("i", "设为 2s"));
                 }
             }
-            Some(_) => out
-                .push(check(Mark::Warn, "statusLine runs another command").fix("s", "use ccline")),
-            None => out.push(check(Mark::Warn, "statusLine not set").fix("s", "connect")),
+            Some(_) => {
+                out.push(check(Mark::Warn, "statusLine 运行的是其他命令").fix("s", "改用 ccline"))
+            }
+            None => out.push(check(Mark::Warn, "未设置 statusLine").fix("s", "连接")),
         },
     }
     out.push(match &cx.doc.note {
-        LoadNote::Fine => check(Mark::Ok, "config.toml valid"),
-        LoadNote::Missing => check(Mark::Info, "no config.toml yet: the default preset"),
-        LoadNote::Invalid(e) => check(Mark::Warn, format!("config.toml invalid: {e}")),
+        LoadNote::Fine => check(Mark::Ok, "config.toml 有效"),
+        LoadNote::Missing => check(Mark::Info, "还没有 config.toml：使用默认预设"),
+        LoadNote::Invalid(e) => check(Mark::Warn, format!("config.toml 无效：{e}")),
     });
     out.push(match &cx.doc.models_error {
-        Some(e) => check(Mark::Warn, format!("models.toml unreadable: {e}")),
+        Some(e) => check(Mark::Warn, format!("models.toml 无法读取：{e}")),
         None => {
             let unknown = super::models::unrecognized(cx.env, &cx.doc.registry()).len();
             if unknown > 0 {
-                check(
-                    Mark::Info,
-                    format!(
-                        "{unknown} unrecognized model id{}",
-                        if unknown == 1 { "" } else { "s" }
-                    ),
-                )
-                .fix("m", "review")
+                check(Mark::Info, format!("{unknown} 个未识别的模型 id")).fix("m", "查看")
             } else {
                 check(
                     Mark::Ok,
-                    format!("models.toml: {} rules", cx.doc.models.rules.len()),
+                    format!("models.toml：{} 条规则", cx.doc.models.rules.len()),
                 )
             }
         }
@@ -122,7 +113,7 @@ fn checks(cx: &Cx) -> Vec<Check> {
     if let Some(v) = &cx.env.update.latest
         && update::is_newer(v, update::CURRENT)
     {
-        out.push(check(Mark::Info, format!("ccline {v} available")).fix("u", "copy upgrade"));
+        out.push(check(Mark::Info, format!("ccline {v} 可更新")).fix("u", "复制升级命令"));
     }
     out
 }
@@ -171,7 +162,7 @@ fn change_settings(env: &Env, refresh: bool) -> Outcome {
     let mut draft = base.clone();
     draft.set_status_line(Some(&line));
     if !draft.differs(&base) {
-        return Outcome::Toast("Already set".into());
+        return Outcome::Toast("已经设置好了".into());
     }
     Outcome::Open(Box::new(SettingsDiff::new(base, draft)))
 }
@@ -182,8 +173,8 @@ impl Home {
     fn now(cx: &Cx, width: u16) -> (Vec<Line<'static>>, String) {
         let registry = cx.doc.registry();
         let (preview, title) = match cx.preview.replayed() {
-            Some(p) => (p, "replay of your last session"),
-            None => (cx.preview.clone(), "no session yet: a sample session"),
+            Some(p) => (p, "上次会话的重放"),
+            None => (cx.preview.clone(), "还没有会话：示例会话"),
         };
         let lines = preview.render(&cx.doc.config, cx.doc, &registry, cx.env.tz, width);
         (lines, title.to_string())
@@ -191,8 +182,8 @@ impl Home {
 
     fn render_now(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>, title: String) {
         let width = area.width.saturating_sub(2);
-        let block = ui::panel("Your status line now").title_top(
-            Line::styled(format!(" {title} · {width} cols "), ui::muted()).right_aligned(),
+        let block = ui::panel("你的状态栏当前样式").title_top(
+            Line::styled(format!(" {title} · {width} 列 "), ui::muted()).right_aligned(),
         );
         f.render_widget(Paragraph::new(lines).block(block), area);
     }
@@ -213,7 +204,7 @@ impl Page for Home {
         .areas(area);
         f.render_widget(
             Paragraph::new(Line::styled(
-                "  ccline — compose your Claude Code status line",
+                "  ccline — 编排你的 Claude Code 状态栏",
                 ui::strong(),
             )),
             head,
@@ -224,7 +215,7 @@ impl Page for Home {
                 .areas(panels);
         let width = left.width.saturating_sub(2) as usize;
         let health: Vec<Line> = checks.iter().map(|c| health_line(c, width)).collect();
-        f.render_widget(Paragraph::new(health).block(ui::panel("Health")), left);
+        f.render_widget(Paragraph::new(health).block(ui::panel("健康检查")), left);
 
         let start: Vec<Line> = START
             .iter()
@@ -239,7 +230,7 @@ impl Page for Home {
                 ])
             })
             .collect();
-        f.render_widget(Paragraph::new(start).block(ui::panel("Start")), right);
+        f.render_widget(Paragraph::new(start).block(ui::panel("开始")), right);
         Self::render_now(f, now, lines, title);
     }
 
@@ -271,7 +262,7 @@ impl Page for Home {
     }
 
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
-        vec![("↑↓", "move"), ("enter", "open"), ("letters", "fix")]
+        vec![("↑↓", "移动"), ("enter", "打开"), ("letters", "修复")]
     }
 
     fn preview(&self) -> bool {
@@ -303,21 +294,21 @@ mod tests {
         );
         let s = screen(&mut app, 112, 33);
         for text in [
-            "Health",
-            "statusLine not set",
-            "s connect",
-            "Your status line now",
-            "a sample session",
+            "健康检查",
+            "未设置 statusLine",
+            "s 连接",
+            "你的状态栏当前样式",
+            "示例会话",
         ] {
             assert!(s.contains(text), "{text}: {s}");
         }
         // Fix keys work from the tab row too.
         app.handle_key(key(KeyCode::Char('s')));
-        assert!(screen(&mut app, 112, 33).contains("Change "));
+        assert!(screen(&mut app, 112, 33).contains("更改 "));
         app.handle_key(key(KeyCode::Char('y')));
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("statusLine runs ccline") && s.contains("i set 2s"),
+            s.contains("statusLine 已在运行 ccline") && s.contains("i 设为 2s"),
             "{s}"
         );
         app.handle_key(key(KeyCode::Char('i')));

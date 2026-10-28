@@ -43,9 +43,9 @@ const PANES: [Pane; 3] = [Pane::Library, Pane::Canvas, Pane::Inspector];
 impl Pane {
     fn title(self) -> &'static str {
         match self {
-            Pane::Library => "Library",
-            Pane::Canvas => "Canvas",
-            Pane::Inspector => "Inspector",
+            Pane::Library => "库",
+            Pane::Canvas => "画布",
+            Pane::Inspector => "检查器",
         }
     }
 }
@@ -119,8 +119,8 @@ impl LayoutPage {
         let width = inner.width as usize;
         let Some((_, cfg, meta)) = self.selected(lines) else {
             let text = Paragraph::new(vec![
-                Line::styled("Pick an item on the canvas", ui::muted()),
-                Line::styled("to see its settings here.", ui::muted()),
+                Line::styled("在画布上选一个项，", ui::muted()),
+                Line::styled("在这里查看它的设置。", ui::muted()),
             ]);
             f.render_widget(text, inner);
             return;
@@ -169,31 +169,28 @@ impl LayoutPage {
             .item_levels(cx.doc, &registry, cx.env.tz, self.target, &cfg)
         {
             Some(levels) => {
-                text.push(Line::styled("Shows", ui::muted()));
-                for (name, line) in ["full", "compact", "minimal"].iter().zip(levels) {
+                text.push(Line::styled("显示", ui::muted()));
+                for (name, line) in ["完整", "紧凑", "极简"].iter().zip(levels) {
                     let mut spans = vec![Span::styled(
-                        format!("  {name:<w$}", w = inspector::LABEL),
+                        format!("  {}", ui::pad(name, inspector::LABEL)),
                         ui::muted(),
                     )];
                     let room = width.saturating_sub(2 + inspector::LABEL);
                     match line {
                         Some(l) => spans.extend(ui::clip(l.spans, room)),
-                        None => spans.push(Span::styled("nothing", ui::muted())),
+                        None => spans.push(Span::styled("无", ui::muted())),
                     }
                     text.push(Line::from(spans));
                 }
             }
-            None => text.push(Line::styled(
-                "Nothing to show in this scenario",
-                ui::muted(),
-            )),
+            None => text.push(Line::styled("此场景中没有可显示的内容", ui::muted())),
         }
         let mut notes = Vec::new();
         if let Some(v) = meta.min_cc {
-            notes.push(format!("needs CC {v}"));
+            notes.push(format!("需要 CC {v}"));
         }
         if meta.stateful {
-            notes.push("keeps history".into());
+            notes.push("保留历史".into());
         }
         if !notes.is_empty() {
             text.push(Line::styled(notes.join(" · "), ui::muted()));
@@ -221,14 +218,12 @@ impl LayoutPage {
         let lines = edit::lines(&doc.config, self.target);
         if id != "cmd" && edit::has_metric(&lines, id) {
             self.apply(doc, |lines, at| Some(edit::remove_metric(lines, id, at)));
-            return Outcome::Toast(format!("Removed {id}"));
+            return Outcome::Toast(format!("已移除 {id}"));
         }
         match library::avail(&m.meta, self.target, env.cc_version()) {
-            Avail::Needs(v) => return Outcome::Toast(format!("{id} needs Claude Code {v}")),
+            Avail::Needs(v) => return Outcome::Toast(format!("{id} 需要 Claude Code {v}")),
             Avail::TaskOnly => {
-                return Outcome::Toast(format!(
-                    "{id} describes a background task; t edits the subagent line"
-                ));
+                return Outcome::Toast(format!("{id} 描述的是后台任务；按 t 编辑子代理行"));
             }
             Avail::Yes => {}
         }
@@ -240,11 +235,11 @@ impl LayoutPage {
             self.pane = Pane::Inspector;
             self.field = 0;
             self.editing = Some(TextInput::default());
-            return Outcome::Toast("Type the command to run, then enter".into());
+            return Outcome::Toast("输入要执行的命令，然后回车".into());
         }
         Outcome::Toast(match self.target {
-            Target::Status => format!("Added {id} to line {}", self.cursor.line + 1),
-            Target::Subagent => format!("Added {id} to the subagent line"),
+            Target::Status => format!("已把 {id} 加到第 {} 行", self.cursor.line + 1),
+            Target::Subagent => format!("已把 {id} 加到子代理行"),
         })
     }
 
@@ -290,7 +285,7 @@ impl LayoutPage {
                     l.remove(n);
                     Some(at)
                 });
-                return Outcome::Toast(format!("Removed line {}", n + 1));
+                return Outcome::Toast(format!("已移除第 {} 行", n + 1));
             }
             KeyCode::Char('n') if grow => {
                 let n = self.cursor.line;
@@ -370,8 +365,8 @@ impl LayoutPage {
                         });
                     });
                     let title = match field {
-                        Field::IconColor => format!("{} icon", meta.id),
-                        Field::Text => format!("{} text", meta.id),
+                        Field::IconColor => format!("{} 图标", meta.id),
+                        Field::Text => format!("{} 文字", meta.id),
                         _ => meta.id.to_string(),
                     };
                     let current = inspector::color_of(field, &cfg);
@@ -449,7 +444,7 @@ impl Page for LayoutPage {
                 spans.push(Span::styled(format!(" {} ", p.title()), style));
                 spans.push(Span::raw(" "));
             }
-            spans.push(Span::styled(" tab next pane", ui::muted()));
+            spans.push(Span::styled(" Tab 切换面板", ui::muted()));
             f.render_widget(Paragraph::new(Line::from(spans)), tabs);
             let none = Rect::default();
             match self.pane {
@@ -485,8 +480,8 @@ impl Page for LayoutPage {
         }
         if !canvas_area.is_empty() {
             let target_name = match self.target {
-                Target::Status => "status line",
-                Target::Subagent => "subagent line",
+                Target::Status => "状态栏",
+                Target::Subagent => "子代理行",
             };
             let title = vec![
                 Span::styled(" t ", ui::muted()),
@@ -545,36 +540,36 @@ impl Page for LayoutPage {
 
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
         if self.editing.is_some() {
-            return vec![("enter", "set"), ("esc", "cancel")];
+            return vec![("enter", "设置"), ("esc", "取消")];
         }
         match self.pane {
             Pane::Library => vec![
-                ("tab", "pane"),
-                ("enter", "add/remove"),
-                ("←→", "fold"),
-                ("/", "search"),
-                ("t", "switch line"),
+                ("tab", "面板"),
+                ("enter", "添加/移除"),
+                ("←→", "折叠"),
+                ("/", "搜索"),
+                ("t", "切换行"),
             ],
             Pane::Canvas if self.target == Target::Subagent => vec![
-                ("tab", "pane"),
-                ("alt+arrows", "move"),
-                ("x", "remove"),
-                ("t", "status line"),
-                ("a", "add"),
+                ("tab", "面板"),
+                ("alt+arrows", "移动"),
+                ("x", "移除"),
+                ("t", "状态栏"),
+                ("a", "添加"),
             ],
             Pane::Canvas => vec![
-                ("tab", "pane"),
-                ("alt+arrows", "move"),
-                ("x", "remove"),
-                ("n", "new line"),
-                ("t", "subagent line"),
-                ("a", "add"),
+                ("tab", "面板"),
+                ("alt+arrows", "移动"),
+                ("x", "移除"),
+                ("n", "新行"),
+                ("t", "子代理行"),
+                ("a", "添加"),
             ],
             Pane::Inspector => vec![
-                ("tab", "pane"),
-                ("←→", "change"),
-                ("enter", "edit"),
-                ("del", "default"),
+                ("tab", "面板"),
+                ("←→", "修改"),
+                ("enter", "编辑"),
+                ("del", "默认"),
             ],
         }
     }
@@ -625,8 +620,8 @@ mod tests {
         app.handle_key(key(KeyCode::Tab));
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains("All Nerd Fonts")
-                && s.contains("10,616 of 10,616")
+            s.contains("全部 Nerd 字体")
+                && s.contains("匹配 10,616 / 共 10,616")
                 && s.contains("Nerd Fonts 3.5.1"),
             "{s}"
         );
@@ -646,14 +641,7 @@ mod tests {
         let mut app = App::new(Doc::open(paths), env());
         app.open_page(PageId::Layout);
         let s = screen(&mut app, 112, 33);
-        for text in [
-            "Library",
-            "Canvas",
-            "Inspector",
-            "Line 1",
-            "Fits in",
-            "▶ Identity",
-        ] {
+        for text in ["库", "画布", "检查器", "第 1 行", "放得下", "▶ 身份"] {
             assert!(s.contains(text), "{text}: {s}");
         }
         let (left, right) = ids(&app.doc.config.lines[0]);
@@ -717,7 +705,7 @@ mod tests {
 
         // Task metrics only go on the subagent line.
         app.handle_key(key(KeyCode::Char('t')));
-        assert!(screen(&mut app, 112, 33).contains("Preview · subagent"));
+        assert!(screen(&mut app, 112, 33).contains("预览 · 子代理"));
         app.handle_key(key(KeyCode::Char('x')));
         assert!(app.doc.config.subagent.is_some());
         app.handle_key(ctrl('z'));
@@ -725,10 +713,7 @@ mod tests {
 
         // One pane at a time below 100 columns.
         let s = screen(&mut app, 90, 30);
-        assert!(
-            s.contains("tab next pane") && !s.contains("╭ Library"),
-            "{s}"
-        );
+        assert!(s.contains("Tab 切换面板") && !s.contains("╭ 库"), "{s}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -739,7 +724,7 @@ mod tests {
         app.open_page(PageId::Layout);
         app.preview.width = Some(40);
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("↵ wraps here") && s.contains("→ 2 lines"), "{s}");
+        assert!(s.contains("↵ 在此换行") && s.contains("→ 2 行"), "{s}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

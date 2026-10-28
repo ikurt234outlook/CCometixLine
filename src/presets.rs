@@ -269,13 +269,13 @@ pub fn slug(text: &str) -> String {
 /// Why `name` (a slug) can't name a new preset, if it can't.
 pub fn name_problem(name: &str) -> Option<String> {
     if name.is_empty() {
-        return Some("Give it a name.".into());
+        return Some("请给它起个名字。".into());
     }
     if name.chars().count() > NAME_MAX {
-        return Some(format!("Keep the name to {NAME_MAX} characters."));
+        return Some(format!("名字请控制在 {NAME_MAX} 个字符以内。"));
     }
     if PRESETS.iter().any(|p| p.name == name) {
-        return Some(format!("{name} is a built-in preset; pick another name."));
+        return Some(format!("{name} 是内置预设，请换个名字。"));
     }
     None
 }
@@ -369,7 +369,7 @@ fn read_file(path: &Path, name: &str) -> Result<(String, Config), String> {
         Config::deserialize(toml::Value::Table(table)).map_err(|e| e.message().to_string())?;
     // Applying a preset without lines would leave the status line empty.
     if config.lines.is_empty() {
-        return Err("it has no [[line]]".into());
+        return Err("它里面没有 [[line]]".into());
     }
     config.preset = Some(name.to_string());
     Ok((head.summary, config))
@@ -498,19 +498,19 @@ impl Library {
     fn mine(&self, name: &str) -> Result<&Entry, String> {
         self.get(name)
             .filter(|e| e.is_mine())
-            .ok_or_else(|| format!("{name} isn't one of your presets"))
+            .ok_or_else(|| format!("{name} 不是你的预设"))
     }
 
     fn taken(&self, name: &str) -> Result<(), String> {
         match self.get(name) {
-            Some(e) if e.is_mine() => Err(format!("You already have {name}; W on it replaces it.")),
+            Some(e) if e.is_mine() => Err(format!("你已经有一个 {name} 了；在它上面按 W 可替换。")),
             _ => Ok(()),
         }
     }
 
     fn write(&self, path: &Path, summary: &str, config: &Config) -> Result<(), String> {
         crate::paths::write_atomic(path, &file_text(summary, config))
-            .map_err(|e| format!("couldn't write {}: {e}", path.display()))
+            .map_err(|e| format!("无法写入 {}：{e}", path.display()))
     }
 
     fn changed(&mut self, last: Option<&str>) {
@@ -557,16 +557,16 @@ impl Library {
         };
         if summary == entry.summary {
             if to != *path {
-                std::fs::rename(path, &to).map_err(|e| format!("couldn't rename {old}: {e}"))?;
+                std::fs::rename(path, &to).map_err(|e| format!("无法重命名 {old}：{e}"))?;
             }
         } else {
             let config = entry
                 .config
                 .as_ref()
-                .map_err(|e| format!("can't read {old}: {e}"))?;
+                .map_err(|e| format!("无法读取 {old}：{e}"))?;
             self.write(&to, summary, config)?;
             if to != *path {
-                std::fs::remove_file(path).map_err(|e| format!("couldn't remove {old}: {e}"))?;
+                std::fs::remove_file(path).map_err(|e| format!("无法删除 {old}：{e}"))?;
             }
         }
         self.changed(Some(new));
@@ -579,7 +579,7 @@ impl Library {
         let Origin::Mine { path, .. } = &entry.origin else {
             unreachable!("mine() returns the user's presets")
         };
-        std::fs::remove_file(path).map_err(|e| format!("couldn't delete {name}: {e}"))?;
+        std::fs::remove_file(path).map_err(|e| format!("无法删除 {name}：{e}"))?;
         self.changed(None);
         Ok(())
     }
@@ -687,7 +687,7 @@ mod tests {
         assert_eq!(slug("工作 布局"), "工作-布局");
         assert_eq!(slug("!!!"), "");
         assert!(name_problem("").is_some());
-        assert!(name_problem("cometix").unwrap().contains("built-in"));
+        assert!(name_problem("cometix").unwrap().contains("内置预设"));
         assert!(name_problem(&"x".repeat(NAME_MAX + 1)).is_some());
         assert_eq!(name_problem("work"), None);
     }
@@ -728,15 +728,11 @@ mod tests {
         assert_eq!(apply(&default_config(), back, Parts::All), want);
         assert_eq!(names(&lib)[0], ("work", true), "the user's come first");
 
-        assert!(
-            lib.create("work", "", &mine)
-                .unwrap_err()
-                .contains("already")
-        );
+        assert!(lib.create("work", "", &mine).unwrap_err().contains("已经"));
         assert!(
             lib.create("cometix", "", &mine)
                 .unwrap_err()
-                .contains("built-in")
+                .contains("内置预设")
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }

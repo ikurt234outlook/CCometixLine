@@ -62,38 +62,34 @@ fn lower<T: std::fmt::Debug>(v: T) -> String {
 fn all(presets: &Library) -> Vec<Command> {
     let mut out = Vec::new();
     for p in PageId::ALL {
-        out.push(app("Go", format!("to {}", p.title()), Action::Goto(p)));
+        out.push(app("跳转", format!("前往 {}", p.title()), Action::Goto(p)));
     }
     out.push(app(
-        "File",
-        "save",
+        "文件",
+        "保存",
         Action::Save {
             force: false,
             then_quit: false,
         },
     ));
-    out.push(app("File", "undo", Action::Undo));
-    out.push(app("File", "redo", Action::Redo));
-    out.push(app("File", "reload from disk", Action::Reload));
-    out.push(app("File", "quit", Action::AskQuit));
-    out.push(app("Setup", "run the first-run setup", Action::Setup));
-    out.push(app("Help", "keys for this page", Action::Help));
+    out.push(app("文件", "撤销", Action::Undo));
+    out.push(app("文件", "重做", Action::Redo));
+    out.push(app("文件", "从磁盘重新加载", Action::Reload));
+    out.push(app("文件", "退出", Action::AskQuit));
+    out.push(app("引导", "运行首次启动设置", Action::Setup));
+    out.push(app("帮助", "本页快捷键", Action::Help));
     for entry in presets.entries() {
         let Ok(preset) = entry.config.clone() else {
             continue;
         };
-        out.push(edit("Preset", format!("apply {}", entry.name), move |c| {
+        out.push(edit("预设", format!("应用 {}", entry.name), move |c| {
             *c = presets::apply(c, &preset, Parts::All);
         }));
     }
-    out.push(app(
-        "Preset",
-        "save the current setup as a new preset",
-        Action::SavePreset,
-    ));
+    out.push(app("预设", "把当前设置另存为新预设", Action::SavePreset));
     for name in palette::available() {
         let label = name.clone();
-        out.push(edit("Palette", label, move |c| c.palette = name.clone()));
+        out.push(edit("配色", label, move |c| c.palette = name.clone()));
     }
     for skin in [
         SkinKind::Plain,
@@ -101,10 +97,10 @@ fn all(presets: &Library) -> Vec<Command> {
         SkinKind::Pill,
         SkinKind::Powerline,
     ] {
-        out.push(edit("Skin", lower(skin), move |c| c.skin = skin));
+        out.push(edit("皮肤", lower(skin), move |c| c.skin = skin));
     }
     for tier in [GlyphTier::Nerd, GlyphTier::Unicode, GlyphTier::Ascii] {
-        out.push(edit("Glyphs", lower(tier), move |c| c.glyphs = tier));
+        out.push(edit("字形", lower(tier), move |c| c.glyphs = tier));
     }
     for m in metrics::catalog() {
         let id = m.meta.id;
@@ -112,7 +108,7 @@ fn all(presets: &Library) -> Vec<Command> {
             continue;
         }
         // Like the library: on the lines once, or not at all.
-        out.push(edit("Layout", format!("add or remove {id}"), move |c| {
+        out.push(edit("布局", format!("添加或移除 {id}"), move |c| {
             let had = c
                 .lines
                 .iter()
@@ -134,13 +130,9 @@ fn all(presets: &Library) -> Vec<Command> {
         }));
     }
     for (i, s) in SCENARIOS.iter().enumerate() {
-        out.push(app(
-            "Preview",
-            format!("scenario {}", s.name),
-            Action::Scenario(i),
-        ));
+        out.push(app("预览", format!("场景 {}", s.name), Action::Scenario(i)));
     }
-    out.push(app("Preview", "replay your last session", Action::Replay));
+    out.push(app("预览", "重放上次会话", Action::Replay));
     out
 }
 
@@ -207,7 +199,7 @@ impl Dialog for Commands {
                 [
                     vec![Span::styled(" > ", ui::accent())],
                     self.input
-                        .line(WIDTH as usize - 6, true, "type to search")
+                        .line(WIDTH as usize - 6, true, "输入以搜索")
                         .spans,
                 ]
                 .concat(),
@@ -226,18 +218,18 @@ impl Dialog for Commands {
             ]));
         }
         if matches.is_empty() {
-            text.push(Line::styled("  nothing matches", ui::muted()));
+            text.push(Line::styled("  没有匹配项", ui::muted()));
         }
         while text.len() < SHOWN + 2 {
             text.push(Line::raw(""));
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("↑↓", "choose"),
-            ("enter", "run"),
-            ("esc", "close"),
+            ("↑↓", "选择"),
+            ("enter", "运行"),
+            ("esc", "关闭"),
         ]));
-        f.render_widget(Paragraph::new(text).block(ui::panel("Commands")), rect);
+        f.render_widget(Paragraph::new(text).block(ui::panel("命令")), rect);
     }
 
     fn handle(&mut self, key: KeyEvent, doc: &mut Doc) -> Reply {
@@ -292,7 +284,7 @@ mod tests {
         let (dir, paths) = temp_paths("commands");
         let mut doc = Doc::open(paths);
         let mut c = Commands::new(&doc.presets);
-        for ch in "skin pill".chars() {
+        for ch in "皮肤 pill".chars() {
             c.handle(key(KeyCode::Char(ch)), &mut doc);
         }
         assert_eq!(c.matches()[0].label, "pill");
@@ -300,7 +292,7 @@ mod tests {
         assert_eq!(doc.config.skin, SkinKind::Pill);
 
         let mut c = Commands::new(&doc.presets);
-        for ch in "go lay".chars() {
+        for ch in "跳转 布局".chars() {
             c.handle(key(KeyCode::Char(ch)), &mut doc);
         }
         assert!(matches!(
@@ -310,7 +302,7 @@ mod tests {
 
         let run = |doc: &mut Doc| {
             let mut c = Commands::new(&doc.presets);
-            for ch in "remove cost.today".chars() {
+            for ch in "移除 cost.today".chars() {
                 c.handle(key(KeyCode::Char(ch)), doc);
             }
             c.handle(key(KeyCode::Enter), doc);

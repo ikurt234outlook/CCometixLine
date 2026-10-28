@@ -44,7 +44,7 @@ impl Dialog for FontCheck {
             .map(|k| glyphs::icon(*k, GlyphTier::Unicode))
             .collect();
         let text = vec![
-            Line::raw(" Do these show as icons, not boxes or question marks?"),
+            Line::raw(" 这些是否显示为图标，而不是方框或问号？"),
             Line::raw(""),
             row(
                 "Nerd",
@@ -52,16 +52,16 @@ impl Dialog for FontCheck {
             ),
             row("Unicode", format!("{}    ▰▱ ▁▃▆█", unicode.join("  "))),
             Line::raw(""),
-            Line::styled(" Pill and powerline skins need the Nerd row.", ui::muted()),
+            Line::styled(" Pill 与 powerline 皮肤需要 Nerd 那一行字形。", ui::muted()),
             Line::raw(""),
             ui::hints(&[
-                ("N", "Nerd Font"),
-                ("U", "Unicode only"),
-                ("A", "ASCII only"),
-                ("esc", "cancel"),
+                ("N", "Nerd 字体"),
+                ("U", "仅 Unicode"),
+                ("A", "仅 ASCII"),
+                ("esc", "取消"),
             ]),
         ];
-        f.render_widget(Paragraph::new(text).block(ui::panel("Font check")), rect);
+        f.render_widget(Paragraph::new(text).block(ui::panel("字体检查")), rect);
     }
 
     fn handle(&mut self, key: KeyEvent, doc: &mut Doc) -> Reply {
@@ -74,7 +74,7 @@ impl Dialog for FontCheck {
         };
         doc.edit(|c, _| c.glyphs = tier);
         Reply::Then(Action::Toast(format!(
-            "Glyphs: {}",
+            "字形：{}",
             format!("{tier:?}").to_lowercase()
         )))
     }

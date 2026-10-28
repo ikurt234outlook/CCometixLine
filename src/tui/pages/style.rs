@@ -51,7 +51,7 @@ const SEMANTIC: usize = 9;
 /// Columns of a semantic cell: marker, name, swatch, value, mark.
 const SEMANTIC_CELL: usize = 2 + 10 + 1 + 9 + 1;
 /// The category table's columns: the color, then segment bg and fg.
-const SEGMENT_COLUMNS: [&str; 3] = ["color", "bg", "fg"];
+const SEGMENT_COLUMNS: [&str; 3] = ["颜色", "背景", "前景"];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum Pane {
@@ -94,7 +94,7 @@ fn depth_label(d: DepthSetting) -> String {
 
 fn separator_label(s: Option<&str>) -> String {
     match s {
-        None => "skin default".into(),
+        None => "皮肤默认".into(),
         Some(s) => format!("\"{s}\""),
     }
 }
@@ -200,7 +200,7 @@ impl StylePage {
             let (marker, style) = self.row_marker(Pane::Skin, SKINS.len() + i, self.skin_row, cx);
             Line::from(vec![
                 marker,
-                Span::styled(format!("{label:<11}"), style),
+                Span::styled(ui::pad(label, 11), style),
                 ui::choice(&value),
                 Span::styled(format!("  {note}"), ui::muted()),
             ])
@@ -213,14 +213,14 @@ impl StylePage {
         let edges = cx.doc.config.powerline;
         lines.push(row(
             0,
-            "Separator",
+            "分隔符",
             separator_label(cx.doc.config.separator.as_deref()),
-            "plain skin".into(),
+            "plain 皮肤".into(),
         ));
-        lines.push(row(1, "Join", lower(edges.join), sample(edges.join)));
-        lines.push(row(2, "End", lower(edges.end), sample(edges.end)));
+        lines.push(row(1, "拼接", lower(edges.join), sample(edges.join)));
+        lines.push(row(2, "结尾", lower(edges.end), sample(edges.end)));
         f.render_widget(
-            Paragraph::new(lines).block(self.block("Skin", Pane::Skin, cx)),
+            Paragraph::new(lines).block(self.block("皮肤", Pane::Skin, cx)),
             area,
         );
     }
@@ -244,13 +244,13 @@ impl StylePage {
                     spans.push(ui::swatch(p.color(t), depth));
                 }
                 if p.light {
-                    spans.push(Span::styled(" light", ui::muted()));
+                    spans.push(Span::styled(" 亮色", ui::muted()));
                 }
                 Line::from(spans)
             })
             .collect();
         f.render_widget(
-            Paragraph::new(lines).block(self.block("Palette", Pane::Palette, cx)),
+            Paragraph::new(lines).block(self.block("配色", Pane::Palette, cx)),
             area,
         );
     }
@@ -261,34 +261,34 @@ impl StylePage {
             let (marker, style) = self.row_marker(Pane::Look, i, self.look_row, cx);
             Line::from(vec![
                 marker,
-                Span::styled(format!("{label:<13}"), style),
+                Span::styled(ui::pad(label, 13), style),
                 ui::choice(&value),
                 Span::styled(format!("  {note}"), ui::muted()),
             ])
         };
         let tier_note = match c.glyphs {
-            GlyphTier::Nerd => "icons from a Nerd Font",
-            GlyphTier::Unicode => "◆ ◔ ⎇ ▰, no special font",
-            GlyphTier::Ascii => "plain ASCII, any terminal",
+            GlyphTier::Nerd => "来自 Nerd 字体的图标",
+            GlyphTier::Unicode => "◆ ◔ ⎇ ▰，无需特殊字体",
+            GlyphTier::Ascii => "纯 ASCII，任何终端",
         };
         let fill_note = match c.fill {
-            FillStyle::Solid => "color behind dark text",
-            FillStyle::Tinted => "colored text on dark",
+            FillStyle::Solid => "深色文字配彩色底",
+            FillStyle::Tinted => "深色底配彩色文字",
         };
         let (marker, style) = self.row_marker(Pane::Look, 3, self.look_row, cx);
         let lines = vec![
-            row(0, "Glyph tier", lower(c.glyphs), tier_note),
-            row(1, "Color depth", depth_label(c.color_depth), ""),
-            row(2, "Fill", lower(c.fill), fill_note),
+            row(0, "字形档位", lower(c.glyphs), tier_note),
+            row(1, "色彩深度", depth_label(c.color_depth), ""),
+            row(2, "填充", lower(c.fill), fill_note),
             Line::from(vec![
                 marker,
-                Span::styled(format!("{:<13}", "Font check"), style),
+                Span::styled(ui::pad("字体检查", 13), style),
                 Span::styled("enter", ui::accent()),
-                Span::styled("  show test glyphs", ui::muted()),
+                Span::styled("  显示测试字形", ui::muted()),
             ]),
         ];
         f.render_widget(
-            Paragraph::new(lines).block(self.block("Glyphs & color", Pane::Look, cx)),
+            Paragraph::new(lines).block(self.block("字形与颜色", Pane::Look, cx)),
             area,
         );
     }
@@ -330,9 +330,7 @@ impl StylePage {
             let t = TOKENS[r];
             let (color, source) = resolve(t);
             let sel = on(0, r);
-            let value = color
-                .map(|c| c.notation())
-                .unwrap_or_else(|| "default".into());
+            let value = color.map(|c| c.notation()).unwrap_or_else(|| "默认".into());
             vec![
                 Span::styled(if sel { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
@@ -349,14 +347,14 @@ impl StylePage {
             let row_on = focused && self.tcol > 0 && self.trow == r;
             let name = Token::from(cat);
             let name = if cat == Category::Custom {
-                "custom"
+                "自定义"
             } else {
                 name.name()
             };
             let mut spans = vec![
                 Span::styled(if row_on { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
-                    format!("{name:<10}"),
+                    ui::pad(name, 10),
                     if row_on {
                         ui::accent()
                     } else {
@@ -378,15 +376,14 @@ impl StylePage {
         };
 
         let mut lines = vec![Line::from(vec![
-            Span::styled(
-                format!("  {:<w$}", "Semantic", w = SEMANTIC_CELL),
-                ui::muted(),
-            ),
+            Span::styled(format!("  {}", ui::pad("语义", SEMANTIC_CELL)), ui::muted()),
             Span::styled(
                 format!(
-                    "    {:<10}{}",
-                    "Category",
-                    SEGMENT_COLUMNS.map(|c| format!(" {c:<5}")).concat()
+                    "    {}{}",
+                    ui::pad("分类", 10),
+                    SEGMENT_COLUMNS
+                        .map(|c| format!(" {}", ui::pad(c, 5)))
+                        .concat()
                 ),
                 ui::muted(),
             ),
@@ -406,12 +403,12 @@ impl StylePage {
         let t = token_at(self.tcol, self.trow);
         let (color, source) = resolve(t);
         let from = match source {
-            Source::Override => "your override",
-            Source::Palette if color.is_none() => "terminal default",
-            Source::Palette => "from the palette",
-            Source::Auto if t == Token::Separator && p.light => "auto, as muted",
-            Source::Auto if t == Token::Separator => "auto, white as in v1",
-            Source::Auto => "auto, from the fill style",
+            Source::Override => "你的覆盖值",
+            Source::Palette if color.is_none() => "终端默认",
+            Source::Palette => "来自配色",
+            Source::Auto if t == Token::Separator && p.light => "自动，作为弱化色",
+            Source::Auto if t == Token::Separator => "自动，沿用 v1 的白色",
+            Source::Auto => "自动，来自填充样式",
         };
         // On the bottom border, so the table keeps every row.
         let detail = Line::from(vec![
@@ -425,10 +422,8 @@ impl StylePage {
         ]);
         let overridden = overrides.len();
         let block = self
-            .block("Tokens", Pane::Tokens, cx)
-            .title_top(
-                Line::styled(format!(" {overridden} overridden "), ui::muted()).right_aligned(),
-            )
+            .block("令牌", Pane::Tokens, cx)
+            .title_top(Line::styled(format!(" 已覆盖 {overridden} "), ui::muted()).right_aligned())
             .title_bottom(detail);
         f.render_widget(Paragraph::new(lines).block(block), area);
     }
@@ -569,12 +564,12 @@ impl Page for StylePage {
                     KeyCode::Delete | KeyCode::Backspace => {
                         let name = token_at(self.tcol, self.trow).name();
                         if !doc.config.palette_overrides.contains_key(name) {
-                            return Outcome::Toast(format!("{name} already follows the palette"));
+                            return Outcome::Toast(format!("{name} 已经跟随配色"));
                         }
                         doc.edit(|c, _| {
                             c.palette_overrides.remove(name);
                         });
-                        return Outcome::Toast(format!("{name} follows the palette again"));
+                        return Outcome::Toast(format!("{name} 重新跟随配色"));
                     }
                     _ => return Outcome::Ignored,
                 }
@@ -586,12 +581,12 @@ impl Page for StylePage {
     fn keys(&self) -> Vec<(&'static str, &'static str)> {
         match self.pane {
             Pane::Tokens => vec![
-                ("tab", "pane"),
-                ("↑↓←→", "move"),
-                ("enter", "edit color"),
-                ("del", "reset"),
+                ("tab", "面板"),
+                ("↑↓←→", "移动"),
+                ("enter", "编辑颜色"),
+                ("del", "重置"),
             ],
-            _ => vec![("tab", "pane"), ("↑↓", "move"), ("enter ←→", "pick")],
+            _ => vec![("tab", "面板"), ("↑↓", "移动"), ("enter ←→", "选择")],
         }
     }
 }
@@ -613,13 +608,13 @@ mod tests {
         app.open_page(PageId::Style);
         let s = screen(&mut app, 112, 33);
         for text in [
-            "Skin",
-            "Palette",
-            "Glyphs & color",
-            "Tokens",
+            "皮肤",
+            "配色",
+            "字形与颜色",
+            "令牌",
             "catppuccin-mocha",
             "● plain",
-            "0 overridden",
+            "已覆盖 0",
         ] {
             assert!(s.contains(text), "{text}: {s}");
         }
@@ -645,7 +640,7 @@ mod tests {
         app.handle_key(key(KeyCode::Tab));
         app.handle_key(key(KeyCode::Down));
         app.handle_key(key(KeyCode::Enter));
-        assert!(screen(&mut app, 112, 33).contains("Color · warn"));
+        assert!(screen(&mut app, 112, 33).contains("颜色 · warn"));
         for _ in 0..7 {
             app.handle_key(key(KeyCode::Backspace));
         }
@@ -661,7 +656,7 @@ mod tests {
                 .map(String::as_str),
             Some("#ff8800")
         );
-        assert!(screen(&mut app, 112, 33).contains("1 overridden"));
+        assert!(screen(&mut app, 112, 33).contains("已覆盖 1"));
         app.handle_key(key(KeyCode::Delete));
         assert!(app.doc.config.palette_overrides.is_empty());
         app.handle_key(ctrl('z'));
@@ -724,11 +719,11 @@ mod tests {
         // White, as v1 drew it, but muted on a light palette.
         let s = screen(&mut app, 112, 33);
         assert!(
-            s.contains(" separator ") && s.contains("auto, white as in v1"),
+            s.contains(" separator ") && s.contains("自动，沿用 v1 的白色"),
             "{s}"
         );
         app.doc.edit(|c, _| c.palette = "catppuccin-latte".into());
-        assert!(screen(&mut app, 112, 33).contains("auto, as muted"));
+        assert!(screen(&mut app, 112, 33).contains("自动，作为弱化色"));
         app.handle_key(key(KeyCode::Enter));
         for _ in 0..7 {
             app.handle_key(key(KeyCode::Backspace));
@@ -739,7 +734,7 @@ mod tests {
         app.handle_key(key(KeyCode::Enter));
         let set = &app.doc.config.palette_overrides;
         assert_eq!(set.get("separator").map(String::as_str), Some("#ff8800"));
-        assert!(screen(&mut app, 112, 33).contains("your override"));
+        assert!(screen(&mut app, 112, 33).contains("你的覆盖值"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

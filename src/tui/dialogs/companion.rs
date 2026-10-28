@@ -34,11 +34,11 @@ impl Dialog for ModSteps {
         let mut text = Vec::new();
         if self.install {
             text.push(Line::raw(format!(
-                " ccline writes the mod to {}, then runs:",
+                " ccline 会把 mod 写入 {}，然后执行：",
                 crate::tui::dialogs::shown_path(&companion::dir())
             )));
         } else {
-            text.push(Line::raw(" ccline runs:"));
+            text.push(Line::raw(" ccline 将执行："));
         }
         text.push(Line::raw(""));
         for s in &steps {
@@ -53,18 +53,18 @@ impl Dialog for ModSteps {
         text.push(Line::raw(""));
         text.push(Line::styled(
             if self.install {
-                " Claude Code records the plugin in its settings. Restart it afterwards."
+                " Claude Code 会把该插件记录进它的设置。之后请重启它。"
             } else {
-                " Claude Code drops the plugin and its marketplace from its settings."
+                " Claude Code 会从设置里移除该插件及其市场（marketplace）。"
             },
             ui::muted(),
         ));
-        text.push(ui::hints(&[("Y", "run"), ("N", "cancel")]));
+        text.push(ui::hints(&[("Y", "执行"), ("N", "取消")]));
         let rect = ui::popup(f, area, WIDTH, text.len() as u16 + 2);
         let title = if self.install {
-            "Install the companion mod"
+            "安装配套 mod"
         } else {
-            "Remove the companion mod"
+            "移除配套 mod"
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(title)), rect);
     }
@@ -78,10 +78,10 @@ impl Dialog for ModSteps {
                     companion::uninstall()
                 };
                 Reply::Then(match result {
-                    Ok(()) if self.install => Action::Toast(
-                        "Installed the companion mod; restart Claude Code to load it".into(),
-                    ),
-                    Ok(()) => Action::Toast("Removed the companion mod".into()),
+                    Ok(()) if self.install => {
+                        Action::Toast("已安装配套 mod；重启 Claude Code 即可加载".into())
+                    }
+                    Ok(()) => Action::Toast("已移除配套 mod".into()),
                     Err(e) => Action::Error(e),
                 })
             }

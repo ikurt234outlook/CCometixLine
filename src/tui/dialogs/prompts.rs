@@ -23,25 +23,19 @@ impl Dialog for Quit {
         let n = cx.doc.edits();
         let mut text = Vec::new();
         if n > 0 {
-            text.push(Line::raw(format!(
-                " {n} change{} since the last save.",
-                if n == 1 { "" } else { "s" }
-            )));
+            text.push(Line::raw(format!(" 上次保存后有 {n} 处改动。")));
         }
         if self.settings {
-            text.push(Line::raw(" A change to settings.json not applied yet."));
+            text.push(Line::raw(" 有一处对 settings.json 的改动尚未应用。"));
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("S", "save and quit"),
-            ("D", "discard"),
-            ("esc", "stay"),
+            ("S", "保存并退出"),
+            ("D", "放弃"),
+            ("esc", "留下"),
         ]));
         let rect = ui::popup(f, area, 64, text.len() as u16 + 4);
-        f.render_widget(
-            Paragraph::new(text).block(ui::panel("Unsaved changes")),
-            rect,
-        );
+        f.render_widget(Paragraph::new(text).block(ui::panel("未保存的改动")), rect);
     }
 
     fn handle(&mut self, key: KeyEvent, _: &mut Doc) -> Reply {
@@ -66,7 +60,7 @@ pub struct Conflict {
 impl Dialog for Conflict {
     fn render(&mut self, f: &mut Frame, area: Rect, _: &Cx) {
         let rect = ui::popup(f, area, 72, 8 + self.paths.len() as u16);
-        let mut text = vec![Line::raw(" Changed outside ccline since it was opened:")];
+        let mut text = vec![Line::raw(" 打开后已被 ccline 之外改动的文件：")];
         text.extend(
             self.paths
                 .iter()
@@ -74,18 +68,15 @@ impl Dialog for Conflict {
         );
         text.push(Line::raw(""));
         text.push(Line::raw(
-            " Overwriting loses those changes; reloading loses yours.",
+            " 覆盖会丢失这些改动；重新加载会丢失你自己的改动。",
         ));
         text.push(Line::raw(""));
         text.push(ui::hints(&[
-            ("O", "overwrite"),
-            ("R", "reload"),
-            ("esc", "cancel"),
+            ("O", "覆盖"),
+            ("R", "重新加载"),
+            ("esc", "取消"),
         ]));
-        f.render_widget(
-            Paragraph::new(text).block(ui::panel("Changed on disk")),
-            rect,
-        );
+        f.render_widget(Paragraph::new(text).block(ui::panel("磁盘上已改动")), rect);
     }
 
     fn handle(&mut self, key: KeyEvent, _: &mut Doc) -> Reply {
